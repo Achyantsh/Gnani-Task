@@ -1,3 +1,4 @@
+import { publicRoutes } from '@/constant/site-config'
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
@@ -33,9 +34,10 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // Public routes that unauthenticated users can access
+  
+
   const isPublicRoute =
-    pathname === '/' ||
-    pathname === '/about' ||
+    publicRoutes.includes(pathname) ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/auth') ||
     pathname === '/oauth/consent'
