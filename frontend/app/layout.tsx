@@ -5,6 +5,7 @@ import { Navbar } from "@/components/navbar";
 import { MeshGradient } from "@/components/ui/mesh-gradient";
 import Footer from "@/components/footer";
 import { SITE_NAME } from "@/constant/site-config";
+import { Toaster } from "@/components/ui/toast";
 
 const outfit = Outfit({
   variable: "--font-sans",
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </div>
 
         <Footer/>
+        <Toaster/>
       </body>
     </html>
   );
