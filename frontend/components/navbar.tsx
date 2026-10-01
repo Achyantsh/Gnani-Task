@@ -12,28 +12,26 @@ import { Info, LogOut, User as UserIcon } from 'lucide-react'
 import { motion } from 'motion/react'
 import { SITE_NAME } from '@/constant/site-config'
 
-const navItems = [
-  { name: 'Dashboard', path: '/' },
-  { name: 'Architecture', path: '/architecture' },
-  { name: 'About', path: '/about' },
-]
-
 export function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const navItems = [
+    { name: user ? 'Dashboard' : 'Home', path: '/' },
+    { name: 'Architecture', path: '/architecture' },
+    { name: 'About', path: '/about' },
+  ]
+
   useEffect(() => {
     const supabase = createClient()
 
-    // Fetch initial user
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user)
       setLoading(false)
     })
 
-    // Listen for auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -66,22 +64,21 @@ export function Navbar() {
     return 'U'
   }
 
-  // Hide global navbar on auth pages where specialized auth header is used
   if (pathname.startsWith('/login') || pathname.startsWith('/auth')) {
     return null
   }
 
   return (
     <>
-      {/* SVG Liquid Distortion Filter (hidden, referenced by glass effect) */}
+      
       <GlassFilter />
 
       <header className="fixed top-0 left-0 right-0 z-50 w-full px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pointer-events-none">
         <div className="mx-auto max-w-6xl pointer-events-auto">
           <GlassEffect className="w-full rounded-2xl sm:rounded-full border border-white/25 px-4 sm:px-6 py-2.5 shadow-2xl backdrop-blur-xl">
-            {/* 3-Part Equal Grid Layout (Left, Center, Right) */}
+           
             <div className="grid grid-cols-3 items-center w-full h-12">
-              {/* Part 1 (Left): Brand / Logo */}
+             
               <div className="flex items-center justify-start">
                 <Link href="/" className="group flex items-center gap-2.5 transition">
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 border border-white/40 shadow-inner backdrop-blur-md font-mono text-sm font-bold text-white transition-transform duration-300 group-hover:scale-105">
@@ -93,7 +90,6 @@ export function Navbar() {
                 </Link>
               </div>
 
-              {/* Part 2 (Center): Floating Tabs with Smooth Motion Active Pill */}
               <div className="flex items-center justify-center">
                 <nav className="relative flex items-center gap-1 rounded-full bg-black/25 p-1 border border-white/10 backdrop-blur-md shadow-inner">
                   {navItems.map((item) => {
@@ -128,7 +124,7 @@ export function Navbar() {
                 </nav>
               </div>
 
-              {/* Part 3 (Right): Profile Circular Avatar with Base UI Glass Dropdown */}
+          
               <div className="flex items-center justify-end">
                 {loading ? (
                   <div className="h-9 w-9 animate-pulse rounded-full bg-white/20" />
@@ -158,7 +154,7 @@ export function Navbar() {
                       >
                         <Menu.Popup className="outline-none">
                           <GlassEffect className="w-64 rounded-3xl p-3 border border-white/25 shadow-2xl backdrop-blur-2xl">
-                            {/* User details header */}
+                            
                             <div className="flex items-center gap-3 px-2.5 py-2 border-b border-white/10 mb-1">
                               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 border border-white/30 text-white font-bold text-xs shrink-0">
                                 {getUserInitials(user)}
@@ -175,7 +171,7 @@ export function Navbar() {
                               </div>
                             </div>
 
-                            {/* Dropdown Items */}
+                     
                             <div className="space-y-1">
                               <Menu.Item
                                 onClick={() => router.push('/')}
@@ -195,7 +191,7 @@ export function Navbar() {
 
                               <div className="my-1 border-t border-white/10" />
 
-                              {/* Logout Button */}
+                            
                               <Menu.Item
                                 onClick={handleSignOut}
                                 className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2 text-xs font-semibold text-rose-300 hover:text-rose-200 hover:bg-rose-500/20 transition-colors cursor-pointer outline-none select-none"
