@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -8,18 +9,21 @@ import type { User } from '@supabase/supabase-js'
 import { GlassEffect, GlassFilter } from './liquid'
 import { Menu } from '@base-ui/react/menu'
 import { Avatar } from '@base-ui/react/avatar'
-import { Info, LogOut, User as UserIcon } from 'lucide-react'
+import { Info, LogOut, User as UserIcon, FileAudio } from 'lucide-react'
 import { motion } from 'motion/react'
 import { SITE_NAME } from '@/constant/site-config'
+import { useDropzoneContext } from '@/context/dropzone-context'
 
 export function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
+  const { resetAll } = useDropzoneContext()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
   const navItems = [
     { name: user ? 'Dashboard' : 'Home', path: '/' },
+    ...(user ? [{ name: 'Transcriptions', path: '/transcriptions' }] : []),
     { name: 'Architecture', path: '/architecture' },
     { name: 'About', path: '/about' },
   ]
@@ -64,6 +68,35 @@ export function Navbar() {
     return 'U'
   }
 
+  const getUserAvatarUrl = (currentUser: User | null): string | null => {
+    if (!currentUser) return null
+
+    const meta = currentUser.user_metadata || {}
+
+    // 1. Direct avatar_url or picture from Supabase Auth user_metadata (Google Auth sets picture)
+    if (meta.avatar_url && typeof meta.avatar_url === 'string') return meta.avatar_url
+    if (meta.picture && typeof meta.picture === 'string') return meta.picture
+    if (meta.avatar && typeof meta.avatar === 'string') return meta.avatar
+
+    // 2. OAuth provider identities (Google / GitHub stored in Supabase identities)
+    if (currentUser.identities && currentUser.identities.length > 0) {
+      for (const identity of currentUser.identities) {
+        const idData = (identity.identity_data as Record<string, unknown>) || {}
+        if (idData.avatar_url && typeof idData.avatar_url === 'string') return idData.avatar_url
+        if (idData.picture && typeof idData.picture === 'string') return idData.picture
+        if (idData.avatar && typeof idData.avatar === 'string') return idData.avatar
+      }
+    }
+
+    // 3. Fallback to Supabase deterministic avatar from email or id
+    if (currentUser.email || currentUser.id) {
+      const seed = encodeURIComponent(currentUser.email || currentUser.id)
+      return `https://api.dicebear.com/7.x/initials/svg?seed=${seed}&backgroundColor=0284c7,2563eb,4f46e5&textColor=ffffff`
+    }
+
+    return null
+  }
+
   if (pathname.startsWith('/login') || pathname.startsWith('/auth')) {
     return null
   }
@@ -80,9 +113,21 @@ export function Navbar() {
             <div className="grid grid-cols-3 items-center w-full h-12">
              
               <div className="flex items-center justify-start">
-                <Link href="/" className="group flex items-center gap-2.5 transition">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 border border-white/40 shadow-inner backdrop-blur-md font-mono text-sm font-bold text-white transition-transform duration-300 group-hover:scale-105">
-                    G
+                <Link
+                  href="/"
+                  onClick={() => resetAll()}
+                  className="group flex items-center gap-2.5 transition cursor-pointer"
+                  title="Return to Home & New Transcription"
+                >
+                  <div className="relative flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-xl overflow-hidden shadow-md ring-1 ring-white/35 transition-transform duration-300 group-hover:scale-105 bg-white/10 backdrop-blur-md">
+                    <Image
+                      src="/gnani-logo.png"
+                      alt="Gnani.ai Logo"
+                      width={48}
+                      height={48}
+                      className="h-full w-full object-cover scale-[1.35]"
+                      priority
+                    />
                   </div>
                   <span className="font-bold text-base sm:text-lg tracking-tight text-white drop-shadow-sm">
                     Audio<span className="font-medium text-sky-200">Note</span>
@@ -132,10 +177,11 @@ export function Navbar() {
                   <Menu.Root>
                     <Menu.Trigger className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/50 cursor-pointer">
                       <Avatar.Root className="relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full border border-white/40 shadow-md transition-all duration-300 hover:scale-105 hover:border-white/70 active:scale-95">
-                        {user.user_metadata?.avatar_url && (
+                        {getUserAvatarUrl(user) && (
                           <Avatar.Image
-                            src={user.user_metadata.avatar_url}
+                            src={getUserAvatarUrl(user)!}
                             alt={user.email ?? 'User profile'}
+                            referrerPolicy="no-referrer"
                             className="aspect-square h-full w-full object-cover"
                           />
                         )}
@@ -156,12 +202,23 @@ export function Navbar() {
                           <GlassEffect className="w-64 rounded-3xl p-3 border border-white/25 shadow-2xl backdrop-blur-2xl">
                             
                             <div className="flex items-center gap-3 px-2.5 py-2 border-b border-white/10 mb-1">
-                              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 border border-white/30 text-white font-bold text-xs shrink-0">
-                                {getUserInitials(user)}
-                              </div>
+                              <Avatar.Root className="relative flex h-9 w-9 shrink-0 overflow-hidden rounded-full border border-white/30 shadow-md">
+                                {getUserAvatarUrl(user) && (
+                                  <Avatar.Image
+                                    src={getUserAvatarUrl(user)!}
+                                    alt={user.email ?? 'User profile'}
+                                    referrerPolicy="no-referrer"
+                                    className="aspect-square h-full w-full object-cover"
+                                  />
+                                )}
+                                <Avatar.Fallback className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-sky-400/30 to-blue-600/40 font-bold text-xs text-white backdrop-blur-md">
+                                  {getUserInitials(user)}
+                                </Avatar.Fallback>
+                              </Avatar.Root>
                               <div className="flex flex-col min-w-0">
                                 <span className="text-xs font-semibold text-white truncate">
                                   {user.user_metadata?.full_name ??
+                                    user.user_metadata?.name ??
                                     user.email?.split('@')[0] ??
                                     'User'}
                                 </span>
@@ -174,11 +231,22 @@ export function Navbar() {
                      
                             <div className="space-y-1">
                               <Menu.Item
-                                onClick={() => router.push('/')}
+                                onClick={() => {
+                                  resetAll();
+                                  router.push('/');
+                                }}
                                 className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2 text-xs font-medium text-zinc-200 hover:text-white hover:bg-white/15 transition-colors cursor-pointer outline-none select-none"
                               >
                                 <UserIcon className="h-3.5 w-3.5 text-zinc-400" />
-                                <span>Home Workspace</span>
+                                <span>Dashboard</span>
+                              </Menu.Item>
+
+                              <Menu.Item
+                                onClick={() => router.push('/transcriptions')}
+                                className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2 text-xs font-medium text-zinc-200 hover:text-white hover:bg-white/15 transition-colors cursor-pointer outline-none select-none"
+                              >
+                                <FileAudio className="h-3.5 w-3.5 text-zinc-400" />
+                                <span>My Transcriptions</span>
                               </Menu.Item>
 
                               <Menu.Item
@@ -186,7 +254,7 @@ export function Navbar() {
                                 className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2 text-xs font-medium text-zinc-200 hover:text-white hover:bg-white/15 transition-colors cursor-pointer outline-none select-none"
                               >
                                 <Info className="h-3.5 w-3.5 text-zinc-400" />
-                                <span>About {SITE_NAME}</span>
+                                <span>About </span>
                               </Menu.Item>
 
                               <div className="my-1 border-t border-white/10" />

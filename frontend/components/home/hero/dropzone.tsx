@@ -62,7 +62,7 @@ export function AudioDropzone({
 
   const isExpanded = propExpanded !== undefined ? propExpanded : contextExpanded;
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop: onDropFiles,
     accept: {
       "audio/*": [".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"],
@@ -73,6 +73,48 @@ export function AudioDropzone({
   });
 
   const hasFile = Boolean(selectedFile || fileName);
+
+  // Enable audio upload and file browsing by pressing Enter on the dashboard
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Enter" || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) {
+        return;
+      }
+
+      // Do not intercept if typing in an input, textarea, or contentEditable element
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable ||
+          (target.tagName === "BUTTON" &&
+            target.getAttribute("data-upload-trigger") !== "true"))
+      ) {
+        return;
+      }
+
+      // If a modal dialog or dropdown menu is active, let it handle Enter
+      if (
+        document.querySelector("[data-slot='dialog-content']") ||
+        document.querySelector("[role='dialog']") ||
+        document.querySelector("[role='menu']")
+      ) {
+        return;
+      }
+
+      if (hasFile && !isWorking && status !== "completed") {
+        e.preventDefault();
+        handleStartPipeline();
+      } else if (!hasFile && status !== "completed") {
+        e.preventDefault();
+        open();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [hasFile, isWorking, status, handleStartPipeline, open]);
 
   if (status === "completed" && completedResult) {
     return (
@@ -120,7 +162,7 @@ export function AudioDropzone({
             {isDragActive ? "Drop audio here" : "Drop audio file here"}
           </p>
           <p className="mt-1 text-xs text-white/50">
-            or click to browse from device
+            or click to browse from device (or press <kbd className="px-1.5 py-0.5 font-mono text-[10px] bg-white/10 rounded border border-white/15 text-white/70">↵ Enter</kbd>)
           </p>
 
           <div className="mt-6 text-[11px] text-white/40 tracking-wide font-mono">
@@ -201,6 +243,7 @@ export function AudioDropzone({
           <div className="mt-auto pt-2 shrink-0 flex items-center gap-3">
             <button
               type="button"
+              data-upload-trigger="true"
               onClick={handleStartPipeline}
               disabled={isWorking}
               className={`flex-1 flex items-center justify-center gap-2.5 rounded-xl py-3 text-xs sm:text-sm font-semibold transition-all shadow-md ${
@@ -218,12 +261,17 @@ export function AudioDropzone({
                       : status === "uploading"
                       ? `Uploading Directly to R2 (${uploadProgress}%)...`
                       : pipelineStage === "SUMMARIZING"
-                      ? "Synthesizing AI Summary with Gemini..."
-                      : "Transcribing with Gnani ASR Neural Engine..."}
+                      ? "AI Summary with Gemini..."
+                      : "Transcribing with Gnani ASR.."}
                   </span>
                 </>
               ) : (
-                <span>Upload &amp; Transcribe Audio</span>
+                <div className="flex items-center gap-2">
+                  <span>Upload &amp; Transcribe Audio</span>
+                  <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono font-semibold text-neutral-600 bg-neutral-100 rounded border border-neutral-300 shadow-2xs">
+                    ↵ Enter
+                  </kbd>
+                </div>
               )}
             </button>
 
