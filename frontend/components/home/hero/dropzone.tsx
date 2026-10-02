@@ -1,29 +1,19 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
-import { useDropzone, FileRejection } from "react-dropzone";
+import React, { useEffect } from "react";
+import { useDropzone } from "react-dropzone";
 import {
   Upload,
   FileAudio,
   X,
   Loader2,
-  Ban,
 } from "lucide-react";
 import { GlassEffect } from "@/components/liquid";
 import { AudioPlayer } from "./audio-player";
 import { LanguageDropdown } from "./language-dropdown";
 import { ResultCard } from "./result-card";
 import { WorkingStatus } from "./working-status";
-import { getPresignedUploadUrl } from "@/actions/upload";
-import {
-  startAudioTranscription,
-  checkTranscriptionTask,
-  cancelAudioTranscription,
-  TranscriptSegment,
-} from "@/actions/transcribe";
-import { useRouter } from "next/navigation";
-import { toast } from "@/components/ui/toast";
-import { createClient } from "@/lib/supabase/client";
+import { useDropzoneContext } from "@/context/dropzone-context";
 
 function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 Bytes";
@@ -33,165 +23,47 @@ function formatFileSize(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
-type StepStatus =
-  | "idle"
-  | "requesting_url"
-  | "uploading"
-  | "uploaded"
-  | "processing"
-  | "completed"
-  | "error";
-
 interface AudioDropzoneProps {
   isExpanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
 }
 
 export function AudioDropzone({
-  isExpanded = false,
+  isExpanded: propExpanded,
   onExpandedChange,
 }: AudioDropzoneProps = {}) {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
-  const [selectedLanguage, setSelectedLanguage] = useState("en-IN");
+  const {
+    selectedFile,
+    fileName,
+    fileSize,
+    audioPreviewUrl,
+    selectedLanguage,
+    setSelectedLanguage,
+    status,
+    uploadProgress,
+    pipelineStage,
+    isCancelling,
+    elapsedSeconds,
+    isWorking,
+    completedResult,
+    isExpanded: contextExpanded,
+    setIsExpanded,
+    handleStartPipeline,
+    handleCancelPipeline,
+    resetAll,
+    onDropFiles,
+  } = useDropzoneContext();
 
-  // Pipeline states
-  const [status, setStatus] = useState<StepStatus>("idle");
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [pipelineStage, setPipelineStage] = useState<string>("INITIALIZING");
-  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
-  const [isCancelling, setIsCancelling] = useState(false);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+      useEffect(()=>{
+      console.log(status)
+    }, [status])
 
-  // Result state
-  const [completedResult, setCompletedResult] = useState<{
-    transcript: string;
-    summary: string;
-    durationSeconds?: number;
-    playbackUrl?: string;
-    segments?: TranscriptSegment[];
-  } | null>(null);
+ 
 
-  const router = useRouter();
-
-  const pollIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
-
-  const isWorking =
-    status === "requesting_url" ||
-    status === "uploading" ||
-    status === "processing";
-
-  // Live timer tracking elapsed time during active job
-  useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
-    if (isWorking) {
-      timer = setInterval(() => {
-        setElapsedSeconds((prev) => prev + 1);
-      }, 1000);
-    } else {
-      setTimeout(() => {
-        setElapsedSeconds(0);
-      }, 10);
-    }
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [isWorking]);
-
-  useEffect(() => {
-    return () => {
-      if (audioPreviewUrl) {
-        URL.revokeObjectURL(audioPreviewUrl);
-      }
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-      }
-    };
-  }, [audioPreviewUrl]);
-
-  const resetAll = () => {
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    }
-    if (audioPreviewUrl) {
-      URL.revokeObjectURL(audioPreviewUrl);
-    }
-    setSelectedFile(null);
-    setAudioPreviewUrl(null);
-    setStatus("idle");
-    setUploadProgress(0);
-    setPipelineStage("INITIALIZING");
-    setActiveTaskId(null);
-    setCompletedResult(null);
-    onExpandedChange?.(false);
-  };
-
-  const handleCancelPipeline = async () => {
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    }
-
-    if (activeTaskId) {
-      setIsCancelling(true);
-      try {
-        await cancelAudioTranscription(activeTaskId);
-        toast.add({
-          title: "Job cancelled",
-          description: "Gnani transcription job was cancelled successfully.",
-          type: "success",
-        });
-      } catch {
-        // Fallback
-      } finally {
-        setIsCancelling(false);
-      }
-    }
-
-    resetAll();
-  };
-
-  const onDrop = useCallback(
-    (acceptedFiles: File[], fileRejections: FileRejection[]) => {
-      resetAll();
-
-      if (fileRejections.length > 0) {
-        const rejection = fileRejections[0];
-        if (rejection.errors[0]?.code === "file-too-large") {
-          toast.add({
-            title: "File too large",
-            description: "Audio exceeds the 1GB limit. Please upload a smaller file.",
-            type: "error",
-          });
-        } else if (rejection.errors[0]?.code === "file-invalid-type") {
-          toast.add({
-            title: "Invalid file format",
-            description: "Please drop a valid audio file (.mp3, .wav, .m4a, .flac).",
-            type: "error",
-          });
-        } else {
-          toast.add({
-            title: "Upload rejected",
-            description: rejection.errors[0]?.message || "Could not read audio file.",
-            type: "error",
-          });
-        }
-        return;
-      }
-
-      if (acceptedFiles.length > 0) {
-        const file = acceptedFiles[0];
-        setSelectedFile(file);
-        const url = URL.createObjectURL(file);
-        setAudioPreviewUrl(url);
-      }
-    },
-    []
-  );
+  const isExpanded = propExpanded !== undefined ? propExpanded : contextExpanded;
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
+    onDrop: onDropFiles,
     accept: {
       "audio/*": [".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"],
     },
@@ -200,157 +72,22 @@ export function AudioDropzone({
     multiple: false,
   });
 
-  const handleStartPipeline = async () => {
-    if (!selectedFile) return;
+  const hasFile = Boolean(selectedFile || fileName);
 
-    try {
-      // R2 Uploading
-      
-      const presigned = await getPresignedUploadUrl(
-        selectedFile.name,
-        selectedFile.type || "audio/mpeg",
-        selectedFile.size
-      );
-
-      if (presigned.statusCode === 403) {
-        setStatus("idle");
-        toast.add({
-          title: "Sign in required",
-          description: "Please sign in to upload and transcribe audio.",
-          type: "error",
-        });
-        router.push("/login");
-        return;
-      }
-
-      if (!presigned.success || !presigned.uploadUrl || !presigned.fileKey) {
-        setStatus("error");
-        toast.add({
-          title: "Upload authorization failed",
-          description: presigned.error || "Failed to secure upload signature.",
-          type: "error",
-        });
-        return;
-      }
-      onExpandedChange?.(true);
-      setStatus("uploading");
-      setUploadProgress(0);
-
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("PUT", presigned.uploadUrl!);
-        xhr.setRequestHeader("Content-Type", selectedFile.type || "audio/mpeg");
-
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            const percent = Math.round((event.loaded / event.total) * 100);
-            setUploadProgress(percent);
-          }
-        };
-
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            setUploadProgress(100);
-            resolve();
-          } else {
-            reject(new Error(`HTTP ${xhr.status}`));
-          }
-        };
-
-        xhr.onerror = () => {
-          reject(new Error("Network error during Cloudflare R2 upload"));
-        };
-
-        xhr.send(selectedFile);
-      });
-
-      setStatus("processing");
-      setPipelineStage("QUEUED");
-
-      const taskRes = await startAudioTranscription(
-        presigned.fileKey,
-        selectedFile.name,
-        selectedLanguage
-      );
-
-      if (!taskRes.success || !taskRes.taskId) {
-        setStatus("error");
-        toast.add({
-          title: "Pipeline dispatch failed",
-          description: taskRes.error || "Failed to trigger transcription.",
-          type: "error",
-        });
-        return;
-      }
-
-      const taskId = taskRes.taskId;
-      setActiveTaskId(taskId);
-
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-
-      pollIntervalRef.current = setInterval(async () => {
-        const check = await checkTranscriptionTask(taskId, presigned.fileKey);
-
-        if (!check.success || check.status === "FAILED") {
-          if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
-          }
-          setStatus("error");
-          toast.add({
-            title: "Transcription error",
-            description: check.error || "Gnani ASR transcription failed.",
-            type: "error",
-          });
-          return;
-        }
-
-        if (check.status === "COMPLETED") {
-          if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
-          }
-          setStatus("completed");
-          setCompletedResult({
-            transcript: check.transcript || "",
-            summary: check.summary || "",
-            durationSeconds: check.durationSeconds,
-            playbackUrl: check.playbackUrl,
-            segments: check.segments || [],
-          });
-          toast.add({
-            title: "Transcription ready!",
-            description: "Gnani ASR transcript & AI summary generated.",
-            type: "success",
-          });
-        } else if (check.lifecycleStage || check.status) {
-          setPipelineStage(check.lifecycleStage || check.status || "IN_PROGRESS");
-        }
-      }, 10000);
-
-    } catch (err: unknown) {
-      setStatus("error");
-      toast.add({
-        title: "Processing error",
-        description:
-          err instanceof Error
-            ? err.message
-            : "An unexpected error occurred during processing.",
-        type: "error",
-      });
-    }
-  };
-
-  if (status === "completed" && completedResult && selectedFile) {
+  if (status === "completed" && completedResult) {
     return (
       <ResultCard
-        filename={selectedFile.name}
+        filename={fileName || selectedFile?.name || "recording.wav"}
         transcript={completedResult.transcript}
         summary={completedResult.summary}
         durationSeconds={completedResult.durationSeconds}
         playbackUrl={completedResult.playbackUrl}
         segments={completedResult.segments}
-        onReset={resetAll}
+        onReset={() => {
+          resetAll();
+          onExpandedChange?.(false);
+          setIsExpanded(false);
+        }}
         isExpanded={isExpanded}
       />
     );
@@ -364,7 +101,7 @@ export function AudioDropzone({
           : "p-6 sm:p-7 min-h-0"
       }`}
     >
-      {!selectedFile ? (
+      {!hasFile ? (
         <div
           {...getRootProps()}
           className={`group relative flex flex-col items-center justify-center rounded-2xl border border-dashed py-14 px-6 text-center transition-all duration-200 cursor-pointer select-none ${
@@ -391,10 +128,14 @@ export function AudioDropzone({
           </div>
         </div>
       ) : (
-        <div className={`space-y-4 ${isExpanded ? "flex-1 flex flex-col justify-between" : ""}`}>
-        
+        <div
+          className={`space-y-4 ${
+            isExpanded ? "flex-1 flex flex-col justify-between" : ""
+          }`}
+        >
+          {/* Top Config Section */}
           <div className="space-y-3.5 shrink-0">
-          
+            {/* File summary pill with disabled remove button during processing */}
             <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/15 bg-white/[0.06] p-3.5 backdrop-blur-md">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 border border-white/15 text-white">
@@ -402,33 +143,42 @@ export function AudioDropzone({
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs sm:text-sm font-medium text-white truncate max-w-[200px] sm:max-w-md">
-                    {selectedFile.name}
+                    {fileName || selectedFile?.name}
                   </p>
                   <p className="text-[11px] text-white/50 mt-0.5">
-                    {formatFileSize(selectedFile.size)}
+                    {formatFileSize(fileSize || selectedFile?.size || 0)}
                   </p>
                 </div>
               </div>
 
+              {/* Remove button disabled during active processing */}
               <button
                 type="button"
-                onClick={resetAll}
+                onClick={() => {
+                  resetAll();
+                  onExpandedChange?.(false);
+                  setIsExpanded(false);
+                }}
                 disabled={isWorking}
                 className={`p-1.5 rounded-lg text-white/50 transition ${
                   isWorking
                     ? "opacity-25 cursor-not-allowed pointer-events-none"
                     : "hover:text-white hover:bg-white/10 cursor-pointer"
                 }`}
-                title={isWorking ? "Cannot remove file while processing" : "Remove file"}
+                title={
+                  isWorking
+                    ? "Cannot remove file while processing"
+                    : "Remove file"
+                }
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-           
+            {/* Local Audio Player preview */}
             {audioPreviewUrl && <AudioPlayer src={audioPreviewUrl} />}
 
-      
+            {/* Language Selector disabled during active processing */}
             <LanguageDropdown
               value={selectedLanguage}
               onChange={setSelectedLanguage}
@@ -438,15 +188,16 @@ export function AudioDropzone({
 
           <div className="flex-1">
             {isWorking && (
-            <WorkingStatus
-              status={status}
-              pipelineStage={pipelineStage}
-              uploadProgress={uploadProgress}
-              elapsedSeconds={elapsedSeconds}
-            />
-          )}
+              <WorkingStatus
+                status={status}
+                pipelineStage={pipelineStage}
+                uploadProgress={uploadProgress}
+                elapsedSeconds={elapsedSeconds}
+              />
+            )}
           </div>
 
+          {/* Bottom Processing Bar: Action button + Cancel Job button pinned at the bottom */}
           <div className="mt-auto pt-2 shrink-0 flex items-center gap-3">
             <button
               type="button"
@@ -481,15 +232,30 @@ export function AudioDropzone({
                 type="button"
                 onClick={handleCancelPipeline}
                 disabled={isCancelling}
-                className="flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-xs sm:text-sm font-medium text-rose-300 transition cursor-pointer active:scale-95 shrink-0"
+                className="
+                  relative overflow-hidden shrink-0
+                  px-5 py-3 rounded-xl
+                  border border-white/15
+                  bg-white/[0.06]
+                  hover:bg-white/[0.11]
+                  active:scale-95
+                  text-xs sm:text-sm font-medium text-white/60
+                  hover:text-white/85
+                  transition-all duration-200
+                  cursor-pointer
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  backdrop-blur-md
+                "
                 title="Cancel ongoing Gnani transcription job"
               >
-                {isCancelling ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Ban className="h-4 w-4 text-rose-400" />
-                )}
-                <span>Cancel</span>
+                {/* Liquid shimmer overlay */}
+                <span
+                  className="pointer-events-none absolute inset-y-0 w-12 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-liquid"
+                  aria-hidden
+                />
+                <span className="relative z-10">
+                  {isCancelling ? "Cancelling..." : "Cancel"}
+                </span>
               </button>
             )}
           </div>

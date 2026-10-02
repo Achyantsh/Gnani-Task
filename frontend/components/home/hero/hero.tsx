@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { AudioDropzone } from "./dropzone";
+import { useDropzoneContext } from "@/context/dropzone-context";
 
 export function Hero() {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const { isExpanded, setIsExpanded } = useDropzoneContext();
 
   return (
     <div

@@ -6,6 +6,7 @@ import { MeshGradient } from "@/components/ui/mesh-gradient";
 import Footer from "@/components/footer";
 import { SITE_NAME } from "@/constant/site-config";
 import { Toaster } from "@/components/ui/toast";
+import { DropzoneProvider } from "@/context/dropzone-context";
 
 const outfit = Outfit({
   variable: "--font-sans",
@@ -45,16 +46,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <div className="absolute inset-0 bg-gradient-to-b from-black/15 via-transparent to-black/35 pointer-events-none" />
         </div>
 
-        {/* Global Floating Glass Navbar (z-50) */}
-        <Navbar />
+        <DropzoneProvider>
+          {/* Global Floating Glass Navbar (z-50) */}
+          <Navbar />
 
-        {/* Route Content (relative z-10, layered on top of background) */}
-        <div className="relative z-10 flex min-h-full flex-col flex-1">
-          {children}
-        </div>
+          {/* Route Content (relative z-10, layered on top of background) */}
+          <div className="relative z-10 flex min-h-full flex-col flex-1">
+            {children}
+          </div>
 
-        <Footer/>
-        <Toaster/>
+          <Footer/>
+          <Toaster/>
+        </DropzoneProvider>
       </body>
     </html>
   );
