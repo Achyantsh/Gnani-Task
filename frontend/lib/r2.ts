@@ -1,4 +1,5 @@
-import { S3Client } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 if (!process.env.CLOUDFLARE_R2_ACCOUNT_ID) {
   throw new Error("Missing CLOUDFLARE_R2_ACCOUNT_ID in environment variables");
@@ -22,3 +23,11 @@ export const r2 = new S3Client({
 });
 
 export const R2_BUCKET_NAME = process.env.CLOUDFLARE_R2_BUCKET_NAME || "gnani-audio";
+
+export async function getPresignedDownloadUrl(fileKey: string, expiresIn: number = 7200): Promise<string> {
+  const command = new GetObjectCommand({
+    Bucket: R2_BUCKET_NAME,
+    Key: fileKey,
+  });
+  return await getSignedUrl(r2, command, { expiresIn });
+}

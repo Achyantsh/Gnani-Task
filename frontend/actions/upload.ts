@@ -10,22 +10,32 @@ interface PresignedUrlResponse {
   uploadUrl?: string;
   fileKey?: string;
   error?: string;
-  statusCode: number
+  statusCode: number;
 }
 
 export async function getPresignedUploadUrl(
   filename: string,
   contentType: string,
-  fileSize: number
+  fileSize: number,
 ): Promise<PresignedUrlResponse> {
+  const startTime = Date.now();
+
   try {
-    const MAX_SIZE = 1024 * 1024 * 1024;
+    const MAX_SIZE = 1024 * 1024 * 1024; // 1 GB
     if (fileSize > MAX_SIZE) {
-      return { success: false, error: "File size exceeds the 1GB limit.", statusCode: 401 };
+      return {
+        success: false,
+        error: "File size exceeds the 1GB limit.",
+        statusCode: 400,
+      };
     }
 
     if (!contentType.startsWith("audio/")) {
-      return { success: false, error: "Only audio files are allowed.", statusCode: 401 };
+      return {
+        success: false,
+        error: "Only audio files are allowed.",
+        statusCode: 400,
+      };
     }
 
     let userId = "guest";
@@ -33,22 +43,23 @@ export async function getPresignedUploadUrl(
       const supabase = await createClient();
       const {
         data: { user },
+        error: authError,
       } = await supabase.auth.getUser();
 
-      if (user?.id) {
+      if (authError) {
+      } else if (user?.id) {
         userId = user.id;
+      } else {
       }
-    } catch {
-      // Continue as guest if auth not initialized
-    }
+    } catch (authErr) {}
 
-    if (userId == "guest"){
+    if (userId === "guest") {
       return {
         success: false,
         uploadUrl: "",
-        error: "User Not Authenticated",
-        statusCode: 403
-      }
+        error: "User Not Authenticated. Please sign in to upload audio.",
+        statusCode: 403,
+      };
     }
 
     const sanitizedFilename = filename.replace(/[^a-zA-Z0-9.-]/g, "_");
@@ -68,17 +79,19 @@ export async function getPresignedUploadUrl(
       success: true,
       uploadUrl,
       fileKey,
-      statusCode: 200
+      statusCode: 200,
     };
   } catch (err: unknown) {
-    console.error("Error generating presigned URL:", err);
+    const errorMsg =
+      err instanceof Error
+        ? err.message
+        : "Failed to generate presigned upload URL.";
+    console.error("Presigned URL error:", err);
+
     return {
       success: false,
-      error:
-        err instanceof Error
-          ? err.message
-          : "Failed to generate presigned upload URL.",
-      statusCode: 401
+      error: errorMsg,
+      statusCode: 500,
     };
   }
 }
