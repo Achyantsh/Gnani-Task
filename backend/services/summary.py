@@ -17,10 +17,10 @@ async def generate_summary(transcript: str, language_code: str = "en-IN") -> str
     lang_code = (language_code or "en").split("-")[0].lower()
     target_language = LANGUAGE_NAMES.get(lang_code, "English")
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={api_key}"
 
     prompt = f"""
-        Provide a clear and concise summary of this transcript in {target_language} for the given transcript:
+        Provide a clear and concise summary of this transcript in {target_language} for the given transcript in PLAIN TEXT (NO MARKDOWN, example: **Tailwind CSS** to Tailwind CSS):
 
         {transcript}
         """
