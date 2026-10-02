@@ -23,9 +23,14 @@ export const SUPPORTED_LANGUAGES = [
 interface LanguageDropdownProps {
   value: string;
   onChange: (val: string) => void;
+  disabled?: boolean;
 }
 
-export function LanguageDropdown({ value, onChange }: LanguageDropdownProps) {
+export function LanguageDropdown({
+  value,
+  onChange,
+  disabled = false,
+}: LanguageDropdownProps) {
   const selectedOption =
     SUPPORTED_LANGUAGES.find((lang) => lang.code === value) ||
     SUPPORTED_LANGUAGES[0];
@@ -34,14 +39,23 @@ export function LanguageDropdown({ value, onChange }: LanguageDropdownProps) {
     <DropdownMenu>
       <DropdownMenuTrigger
         type="button"
-        className="w-full flex items-center justify-between gap-2 rounded-2xl border border-white/15 bg-white/[0.06] hover:bg-white/[0.1] px-3.5 py-2.5 text-xs text-white backdrop-blur-md transition-all cursor-pointer outline-none select-none"
+        disabled={disabled}
+        className={` flex items-center justify-between gap-2 rounded-2xl border border-white/15 bg-white/[0.06] px-3.5 py-2.5 text-xs text-white backdrop-blur-md transition-all outline-none select-none ${
+          disabled
+            ? "opacity-50 cursor-not-allowed pointer-events-none"
+            : "hover:bg-white/[0.1] cursor-pointer w-full"
+        }`}
       >
         <div className="flex items-center gap-2">
           <Languages className="h-3.5 w-3.5 text-sky-300" />
           <span className="text-white/60">Language:</span>
           <span className="font-medium text-white">{selectedOption.name}</span>
         </div>
-        <ChevronDown className="h-3.5 w-3.5 text-white/60 transition-transform duration-200" />
+        <ChevronDown
+          className={`h-3.5 w-3.5 text-white/60 transition-transform duration-200 ${
+            disabled ? "opacity-30" : ""
+          }`}
+        />
       </DropdownMenuTrigger>
 
       <DropdownMenuContent

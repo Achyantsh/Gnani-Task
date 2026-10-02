@@ -5,6 +5,7 @@ import { Play, Pause, Volume2, VolumeX } from "lucide-react";
 
 interface AudioPlayerProps {
   src: string;
+  seekTime?: number | null;
 }
 
 function formatTime(secs: number): string {
@@ -14,12 +15,20 @@ function formatTime(secs: number): string {
   return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
 }
 
-export function AudioPlayer({ src }: AudioPlayerProps) {
+export function AudioPlayer({ src, seekTime }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
+
+  useEffect(() => {
+    if (audioRef.current && typeof seekTime === "number" && !isNaN(seekTime)) {
+      audioRef.current.currentTime = seekTime;
+      audioRef.current.play().catch(() => {});
+      setIsPlaying(true);
+    }
+  }, [seekTime]);
 
   useEffect(() => {
     const audio = audioRef.current;

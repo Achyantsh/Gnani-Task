@@ -2,12 +2,15 @@
 "use client";
 
 import { cn } from "cn";
+import Link from "next/link";
 import React from "react";
 
 // Types
 interface GlassEffectProps {
   children: React.ReactNode;
   className?: string;
+  containerClassName?: string;
+  contentClassName?: string;
   style?: React.CSSProperties;
   href?: string;
   target?: string;
@@ -19,25 +22,96 @@ interface DockIcon {
   onClick?: () => void;
 }
 
+// Helper to intelligently route container vs content styling classes
+function splitGlassClasses(className: string = "") {
+  const containerClasses: string[] = [];
+  const contentClasses: string[] = [];
+  const tokens = className.trim().split(/\s+/).filter(Boolean);
+
+  for (const token of tokens) {
+    const subParts = token.split(":");
+    const base = subParts[subParts.length - 1];
+
+    const isContainer =
+      base.startsWith("rounded") ||
+      base.startsWith("border") ||
+      base.startsWith("shadow") ||
+      base.startsWith("backdrop-") ||
+      base.startsWith("bg-") ||
+      base.startsWith("w-") ||
+      base.startsWith("max-w-") ||
+      base.startsWith("min-w-") ||
+      base.startsWith("h-") ||
+      base.startsWith("max-h-") ||
+      base.startsWith("min-h-") ||
+      base.startsWith("transition") ||
+      base.startsWith("duration-") ||
+      base.startsWith("ease-") ||
+      base.startsWith("cursor-") ||
+      base.startsWith("overflow-");
+
+    const isContent =
+      base.startsWith("p-") ||
+      base.startsWith("px-") ||
+      base.startsWith("py-") ||
+      base.startsWith("pt-") ||
+      base.startsWith("pb-") ||
+      base.startsWith("pl-") ||
+      base.startsWith("pr-") ||
+      base.startsWith("flex") ||
+      base.startsWith("inline-flex") ||
+      base.startsWith("grid") ||
+      base.startsWith("gap-") ||
+      base.startsWith("space-") ||
+      base.startsWith("items-") ||
+      base.startsWith("justify-") ||
+      base.startsWith("content-") ||
+      base.startsWith("self-") ||
+      base.startsWith("text-") ||
+      base.startsWith("font-") ||
+      base.startsWith("leading-") ||
+      base.startsWith("tracking-");
+
+    if (isContainer) {
+      containerClasses.push(token);
+    }
+    if (isContent || !isContainer) {
+      contentClasses.push(token);
+    }
+  }
+
+  return {
+    containerClass: containerClasses.join(" "),
+    contentClass: contentClasses.join(" "),
+  };
+}
+
 // Glass Effect Wrapper Component
 const GlassEffect: React.FC<GlassEffectProps> = ({
   children,
   className = "",
+  containerClassName = "",
+  contentClassName = "",
   style = {},
   href,
   target = "_blank",
 }) => {
   const glassStyle = {
     boxShadow: "0 6px 32px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.1)",
-    transitionTimingFunction: "cubic-bezier(0.175, 0.885, 0.32, 2.2)",
+    transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
     ...style,
   };
 
+  const { containerClass, contentClass } = splitGlassClasses(className);
+
   const content = (
     <div
-      className={`relative flex overflow-hidden transition-all duration-700 ${
-        href ? "cursor-pointer" : ""
-      } ${className}`}
+      className={cn(
+        "relative flex flex-col overflow-hidden transition-all duration-700",
+        href && "cursor-pointer",
+        containerClass,
+        containerClassName
+      )}
       style={glassStyle}
     >
       {/* Glass Layers */}
@@ -64,14 +138,22 @@ const GlassEffect: React.FC<GlassEffectProps> = ({
       />
 
       {/* Content */}
-      <div className="relative z-30 w-full">{children}</div>
+      <div
+        className={cn(
+          "relative z-30 w-full min-h-full flex-1 rounded-[inherit]",
+          contentClass,
+          contentClassName
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 
   return href ? (
-    <a href={href} target={target} rel="noopener noreferrer" className="block">
+    <Link href={href} target={target} rel="noopener noreferrer" className="block">
       {content}
-    </a>
+    </Link>
   ) : (
     content
   );
