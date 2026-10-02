@@ -211,8 +211,8 @@ export function ResultCard({
                 className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 hover:bg-white/20 px-2.5 py-1 text-[11px] text-white/80 hover:text-white transition cursor-pointer"
                 title="Download Summary as .txt"
               >
-                <Download className="h-3.5 w-3.5 text-sky-400" />
-                <span>Download</span>
+                <Download className="h-3.5 w-3.5 " />
+                {/* <span>Download</span> */}
               </button>
             </div>
           </div>
@@ -280,8 +280,8 @@ export function ResultCard({
                 className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 hover:bg-white/20 px-2.5 py-1 text-[11px] text-white/80 hover:text-white transition cursor-pointer"
                 title="Download Full Transcript as .txt"
               >
-                <Download className="h-3.5 w-3.5 text-sky-400" />
-                <span>Download</span>
+                <Download className="h-3.5 w-3.5" />
+                {/* <span>Download</span> */}
               </button>
             </div>
           </div>

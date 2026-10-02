@@ -128,3 +128,46 @@
     @apply font-sans;
   }
 }
+
+@keyframes liquid-flow {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  100% {
+    transform: translateX(600%);
+  }
+}
+
+@keyframes liquid-flow-fast {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  100% {
+    transform: translateX(700%);
+  }
+}
+
+.animate-liquid {
+  animation: liquid-flow 2.2s linear infinite;
+}
+
+.animate-liquid-fast {
+  animation: liquid-flow-fast 0.7s linear infinite;
+}
+
+@keyframes bar-wave {
+  0%, 100% { transform: scaleY(0.2); }
+  50%       { transform: scaleY(1); }
+}
+
+@keyframes orb-pulse {
+  0%, 100% { transform: scale(1);    opacity: 0.55; }
+  50%       { transform: scale(1.18); opacity: 0.85; }
+}
+
+@keyframes float-y {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-4px); }
+}
