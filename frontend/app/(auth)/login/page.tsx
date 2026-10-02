@@ -293,17 +293,6 @@ function LoginForm() {
           <span>Google</span>
         </button>
       </div>
-
-      <div className="mt-6 text-center text-[11px] text-white/75">
-        By continuing, you agree to {SITE_NAME}&apos;s{" "}
-        <Link
-          href="/terms-and-policies"
-          className="underline underline-offset-4 text-white hover:text-sky-200 transition"
-        >
-          Terms &amp; Policies
-        </Link>
-        .
-      </div>
     </GlassEffect>
   );
 }

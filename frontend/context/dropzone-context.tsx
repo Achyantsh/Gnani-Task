@@ -363,8 +363,8 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
         }
       };
 
-      // Poll every 3 seconds to catch the summarization stage promptly
-      pollIntervalRef.current = setInterval(poll, 3000);
+      // Poll every 10 seconds to catch the summarization stage promptly
+      pollIntervalRef.current = setInterval(poll, 10000);
     },
     [stopPolling],
   );
