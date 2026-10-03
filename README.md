@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="images/logo.png" alt="AudioNote logo" width="120" />
+<img src="frontend/public/gnani-logo.png" alt="AudioNote logo" width="120" />
 
 # AudioNote
 
@@ -8,7 +8,7 @@
 
 Upload audio. Get a transcript, a concise summary, and a history you can come back to.
 
-[Live demo](https://gnani-task-one.vercel.app) · [Architecture](https://gnani-task-one.vercel.app/architecture) · [Report an issue](https://github.com/achyantsh/gnani-task/issues)
+[Live demo](https://gnani-task-one.vercel.app) · [Architecture](https://gnani-task-one.vercel.app/architecture)
 
 </div>
 
@@ -22,7 +22,7 @@ AudioNote is a full-stack audio notes platform built around one simple flow:
 
 Recordings go straight from the browser to object storage, are transcribed asynchronously with Gnani Batch STT, summarized with Google Gemini, and saved so they can be reopened at any time.
 
-![AudioNote system architecture](images/system-architecture.svg)
+![AudioNote system architecture](frontend/public/architecture/AudioNote-System-Architecture.svg)
 
 ## Features
 
@@ -44,11 +44,11 @@ Recordings go straight from the browser to object storage, are transcribed async
 5. When transcription completes, the backend fetches the transcript and asks **Gemini** for a summary.
 6. The result is saved to **Supabase PostgreSQL** and appears in the user's history.
 
-![End-to-end processing flow](images/processing-flow.svg)
+![End-to-end processing flow](frontend/public/architecture/End-to-end-processing-flow.svg)
 
 ### Processing states
 
-![Processing states](images/processing-states.svg)
+![Processing states](frontend/public/architecture/Processing-states.svg)
 
 Large files never pass through the application servers, and no single HTTP request stays open for the length of a transcription job.
 
