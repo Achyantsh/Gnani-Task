@@ -512,49 +512,8 @@ export default function ArchitecturePage() {
               );
             })}
           </div>
-
-          <GlassEffect className="rounded-[28px] border border-white/20 bg-slate-900/50 p-7 sm:p-9 shadow-[0_16px_40px_rgba(0,0,0,0.35)]">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <div className="text-xs sm:text-sm font-semibold uppercase tracking-[0.2em] text-sky-300">
-                  Current orchestration path
-                </div>
-
-                <h3 className="mt-2 text-xl sm:text-2xl font-bold tracking-tight text-white">
-                  Upload → Batch Job → Poll → Complete
-                </h3>
-
-                <p className="mt-3 max-w-3xl text-sm sm:text-base leading-relaxed text-slate-300 font-medium">
-                  The browser does not wait on a single long-running HTTP
-                  request. It receives a task identifier and observes the
-                  processing state until the transcript and summary are ready.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 text-sm font-semibold">
-                {[
-                  "Upload",
-                  "Gnani job",
-                  "Polling",
-                  "Transcript",
-                  "Summary",
-                ].map((step, index) => (
-                  <div key={step} className="contents">
-                    <span className="rounded-xl border border-white/15 bg-white/[0.05] px-4 py-2 text-white">
-                      {step}
-                    </span>
-
-                    {index < 4 && (
-                      <ArrowRight className="hidden h-4 w-4 text-sky-300/50 sm:block" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </GlassEffect>
         </section>
 
-        {/* Large audio */}
         <section className="space-y-8">
           <SectionHeading
             eyebrow="Large audio handling"

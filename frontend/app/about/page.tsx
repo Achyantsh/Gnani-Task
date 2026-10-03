@@ -54,6 +54,7 @@ const BENEFITS = [
 const USE_CASES = [
   "Lectures",
   "Interviews",
+  "Podcasts",
   "Research",
   "Voice memos",
   "Ideas",
@@ -152,7 +153,7 @@ export default function AboutPage() {
   return (
     <main className="min-h-screen px-4 pb-24 pt-28 sm:px-6 sm:pt-36 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-24">
-        {/* Hero */}
+       
         <section className="relative overflow-hidden rounded-[36px] border border-white/15 bg-slate-900/30 backdrop-blur-xl px-6 py-14 text-center sm:px-12 sm:py-20 shadow-[0_20px_50px_rgba(0,0,0,0.4)]">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(125,211,252,0.22),transparent_48%)]" />
 
@@ -193,7 +194,6 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* Why AudioNote */}
         <section className="space-y-8">
           <SectionHeading
             eyebrow="Why AudioNote"
@@ -233,7 +233,6 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* Use cases */}
         <section className="space-y-8">
           <SectionHeading
             eyebrow="Built for real recordings"
@@ -321,7 +320,7 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* Built with */}
+        
         <section className="space-y-8">
           <SectionHeading
             eyebrow="Built with"
@@ -359,7 +358,7 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* Closing CTA */}
+       
         <section className="relative overflow-hidden rounded-[36px] border border-white/20 bg-gradient-to-br from-sky-500/[0.18] via-slate-900/70 to-cyan-500/[0.14] p-8 text-center sm:p-12 lg:p-16 shadow-[0_20px_50px_rgba(0,0,0,0.4)] backdrop-blur-xl">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(125,211,252,0.16),transparent_42%)]" />
 
