@@ -1,173 +1,127 @@
+<div align="center">
+
+<img src="images/logo.png" alt="AudioNote logo" width="120" />
+
 # AudioNote
 
-> Turn recordings into something you can actually use.
+**Turn recordings into something you can actually use.**
 
-AudioNote is a full-stack audio notes platform that turns uploaded recordings into **transcripts, AI-generated summaries, and reusable history**.
+Upload audio. Get a transcript, a concise summary, and a history you can come back to.
 
-The product is designed around one simple flow:
+[Live demo](https://gnani-task-one.vercel.app) · [Architecture](https://gnani-task-one.vercel.app/architecture) · [Report an issue](https://github.com/achyantsh/gnani-task/issues)
+
+</div>
+
+---
+
+## Overview
+
+AudioNote is a full-stack audio notes platform built around one simple flow:
 
 **Upload → Transcribe → Summarize → Revisit**
 
----
+Recordings go straight from the browser to object storage, are transcribed asynchronously with Gnani Batch STT, summarized with Google Gemini, and saved so they can be reopened at any time.
 
-## What it does
+![AudioNote system architecture](images/system-architecture.svg)
 
-- Upload audio recordings directly to object storage
-- Transcribe recordings using **Gnani Batch ASR**
-- Generate concise summaries using **Google Gemini**
-- Show visible processing progress for longer recordings
-- Store completed results and reopen them later
-- Authenticate users with **Supabase**
+## Features
 
----
+- **Direct uploads.** Audio goes from the browser to Cloudflare R2 through a short-lived presigned URL, up to 1 GB per file.
+- **Accurate transcription.** Gnani Batch STT handles long recordings as background jobs, with optional cancellation.
+- **Multilingual.** English, Hindi, Tamil, Telugu, Kannada, Bengali, Marathi and Gujarati, with summaries written in the selected language.
+- **Clear summaries.** Gemini turns the finished transcript into a short plain-text summary.
+- **Visible progress.** Upload, transcription and summary stages stay on screen, so long files never look frozen.
+- **Honest failures.** Invalid files, upload errors, failed jobs and network problems are surfaced to the user.
+- **History.** Completed recordings are stored per user with transcript, summary and audio playback.
+- **Secure by default.** Supabase email and Google sign-in, with private audio served through signed URLs.
 
-## Product flow
+## How it works
 
-```text
-                    ┌──────────────┐
-                    │   Next.js    │
-                    │   Frontend   │
-                    └──────┬───────┘
-                           │
-                    Direct upload
-                           │
-                           ▼
-                    ┌──────────────┐
-                    │ Cloudflare   │
-                    │      R2      │
-                    └──────┬───────┘
-                           │
-                     Signed URL
-                           │
-                           ▼
-                    ┌──────────────┐
-                    │   FastAPI    │
-                    │ Orchestrator │
-                    └──────┬───────┘
-                           │
-                 ┌─────────┴─────────┐
-                 ▼                   ▼
-          ┌─────────────┐     ┌─────────────┐
-          │  Gnani ASR  │     │   Gemini    │
-          │ Batch STT   │     │ Summarizer  │
-          └──────┬──────┘     └──────┬──────┘
-                 └─────────┬─────────┘
-                           ▼
-                    ┌──────────────┐
-                    │   Supabase   │
-                    │ PostgreSQL   │
-                    └──────────────┘
-```
+1. The browser validates the file and requests a presigned upload URL.
+2. The audio is uploaded directly to **Cloudflare R2**.
+3. **FastAPI** creates and starts a **Gnani Batch STT** job from a signed read URL and returns a task ID.
+4. The frontend polls the task status and shows the current stage.
+5. When transcription completes, the backend fetches the transcript and asks **Gemini** for a summary.
+6. The result is saved to **Supabase PostgreSQL** and appears in the user's history.
 
-For the full implementation details, see the in-app **[Architecture page](frontend/app/architecture/page.tsx)**.
+![End-to-end processing flow](images/processing-flow.svg)
 
----
+### Processing states
 
-## Architecture
+![Processing states](images/processing-states.svg)
 
-### 01 · System architecture
-
-![AudioNote system architecture](frontend/public/architecture/01-system-architecture.svg)
-
-### 02 · End-to-end processing flow
-
-![AudioNote processing flow](frontend/public/architecture/02-end-to-end-processing-flow.svg)
-
-### 04 · Processing states
-
-![AudioNote processing states](frontend/public/architecture/04-processing-states.svg)
-
-> Keep these diagrams inside `frontend/public/architecture/` so the images render directly on GitHub from the repository.
-
----
-
-## How long audio is handled
-
-Audio is intentionally kept out of the application server wherever possible.
-
-1. The browser requests a short-lived presigned upload URL.
-2. The recording is uploaded directly to **Cloudflare R2**.
-3. FastAPI creates a **Gnani Batch STT** job using the stored object URL.
-4. Gnani processes the recording asynchronously.
-5. The frontend polls the backend for task status and updates the visible processing stage.
-6. Once transcription is complete, the backend generates the summary and stores the finished result.
-
-This keeps large file transfers away from FastAPI and avoids holding one long-running HTTP request open for the entire transcription job.
-
----
+Large files never pass through the application servers, and no single HTTP request stays open for the length of a transcription job.
 
 ## Tech stack
 
 | Layer | Technology |
 |---|---|
 | Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS |
-| UI | Lucide React, Motion, custom liquid/glass components |
+| UI | Motion, Lucide, custom liquid glass components |
 | Backend | FastAPI, Python |
-| Speech-to-text | Gnani Batch STT |
+| Speech to text | Gnani Batch STT |
 | Summarization | Google Gemini |
 | Storage | Cloudflare R2 |
-| Database | Supabase PostgreSQL |
-| Authentication | Supabase Auth |
+| Database and auth | Supabase PostgreSQL and Supabase Auth |
 
----
-
-## Repository structure
+## Project structure
 
 ```text
 .
-├── frontend/
-│   ├── app/
-│   │   ├── (auth)/
-│   │   ├── about/
-│   │   ├── architecture/
-│   │   └── transcriptions/
-│   ├── actions/
-│   ├── components/
-│   ├── lib/
+├── frontend/                 Next.js application
+│   ├── app/                  Routes: home, transcriptions, about, architecture, auth
+│   ├── actions/              Server actions: upload, transcribe, history
+│   ├── components/           Interface and UI primitives
+│   ├── context/              Upload and processing state
+│   ├── lib/                  R2 and Supabase clients
 │   └── public/
-│       └── architecture/
-│           ├── 01-system-architecture.svg
-│           ├── 02-end-to-end-processing-flow.svg
-│           └── 04-processing-states.svg
-│
 ├── routes/
-│   └── transcription.py
+│   └── transcription.py      Transcription endpoints
 ├── services/
-│   ├── gnani.py
-│   ├── r2.py
-│   └── summary.py
-├── main.py
+│   ├── gnani.py              Gnani Batch STT client
+│   ├── r2.py                 Signed URL helpers
+│   └── summary.py            Gemini summarization
+├── images/                   README assets
 ├── config.py
+├── main.py
 └── requirements.txt
 ```
 
----
+## API
 
-## Local setup
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/transcribe` | Create and start a transcription job |
+| `GET` | `/transcribe/{task_id}` | Get job status, or the finished result |
+| `POST` | `/transcribe/{task_id}/cancel` | Cancel a running job |
+| `GET` | `/health` | Service health check |
 
-### 1. Clone the repository
+## Getting started
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 20+
+- Accounts for Gnani, Google AI Studio, Cloudflare R2 and Supabase
+
+### 1. Clone
 
 ```bash
 git clone https://github.com/achyantsh/gnani-task.git
 cd gnani-task
 ```
 
-### 2. Start the FastAPI backend
+### 2. Backend
 
 ```bash
 python -m venv .venv
-
-# Windows
-.venv\Scripts\activate
-
-# macOS / Linux
-source .venv/bin/activate
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
 
-### 3. Start the Next.js frontend
+### 3. Frontend
 
 ```bash
 cd frontend
@@ -175,15 +129,30 @@ npm install
 npm run dev
 ```
 
-The frontend runs on `http://localhost:3000` by default.
+The app runs at `http://localhost:3000`.
 
----
+### 4. Database
+
+Create a `transcriptions` table in Supabase with these columns:
+
+| Column | Type |
+|---|---|
+| `id` | `uuid`, primary key |
+| `user_id` | `uuid`, references `auth.users` |
+| `filename` | `text` |
+| `file_key` | `text` |
+| `language_code` | `text` |
+| `duration_seconds` | `float8` |
+| `transcript` | `text` |
+| `summary` | `text` |
+| `status` | `text` |
+| `created_at` | `timestamptz`, default `now()` |
+
+Enable row level security so each user can only read their own rows. Your R2 bucket also needs a CORS rule that allows `PUT` from your frontend origin.
 
 ## Environment variables
 
-### Backend
-
-Create a `.env` file for the FastAPI service:
+**Backend** (`.env`)
 
 ```env
 GNANI_API_KEY=
@@ -200,9 +169,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 CORS_ORIGINS=http://localhost:3000
 ```
 
-### Frontend
-
-Create `frontend/.env.local`:
+**Frontend** (`frontend/.env.local`)
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=
@@ -216,66 +183,26 @@ CLOUDFLARE_R2_SECRET_KEY=
 CLOUDFLARE_R2_BUCKET_NAME=
 ```
 
-Never commit real credentials or API keys.
+Never commit real credentials.
 
----
+## Deployment
 
-## Processing model
+| Service | Platform |
+|---|---|
+| Frontend | Vercel |
+| Backend | Render |
+| Storage | Cloudflare R2 |
+| Database and auth | Supabase |
 
-### Synchronous
+Set `FASTAPI_URL` on the frontend to your deployed backend, and add the frontend URL to `CORS_ORIGINS` on the backend.
 
-Short-lived application operations handle:
+## Roadmap
 
-- file validation
-- upload URL generation
-- task creation
-- status requests
-- final persistence
-
-### Asynchronous
-
-The long-running transcription stage is handled by **Gnani Batch STT**.
-
-The frontend receives a task identifier and observes the external job through polling instead of keeping the browser tied to one long-running request.
-
----
-
-## Failure handling
-
-The application surfaces failures across the processing pipeline, including:
-
-- invalid or oversized uploads
-- upload URL failures
-- Gnani job failures or cancellation
-- polling/network errors
-- summary generation failures
-- signed playback URL failures
-
-The UI keeps the current processing state visible so longer recordings do not appear frozen.
-
----
-
-## Future improvements
-
-The current architecture is intentionally compact. Natural next steps include:
-
-- durable task state instead of process-memory state
-- queue-backed background workers
-- stronger retry and idempotency guarantees
-- richer task and provider observability
-- improved scaling for higher concurrent workload
-
----
-
-## Explore the app
-
-- **Dashboard** — upload and process a recording
-- **Transcriptions** — browse previously completed recordings
-- **About** — product overview
-- **Architecture** — detailed system design and processing model
-
----
+- Durable task state in place of in-memory storage
+- Queue-backed background workers
+- Retries and idempotency for provider calls
+- Provider and task observability
 
 ## License
 
-This project was created as a take-home implementation for the Gnani Audio Notes Platform task.
+Built as a take-home implementation of the Gnani Audio Notes Platform task.
