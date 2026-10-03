@@ -12,12 +12,9 @@ import { Avatar } from '@base-ui/react/avatar'
 import { Info, LogOut, User as UserIcon, FileAudio } from 'lucide-react'
 import { motion } from 'motion/react'
 import { SITE_NAME } from '@/constant/site-config'
-import { useDropzoneContext } from '@/context/dropzone-context'
-
 export function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
-  const { resetAll } = useDropzoneContext()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -115,9 +112,8 @@ export function Navbar() {
               <div className="flex items-center justify-start">
                 <Link
                   href="/"
-                  onClick={() => resetAll()}
                   className="group flex items-center gap-2.5 transition cursor-pointer"
-                  title="Return to Home & New Transcription"
+                  title="Return to Home"
                 >
                   <div className="relative flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-xl overflow-hidden shadow-md ring-1 ring-white/35 transition-transform duration-300 group-hover:scale-105 bg-white/10 backdrop-blur-md">
                     <Image
@@ -231,10 +227,7 @@ export function Navbar() {
                      
                             <div className="space-y-1">
                               <Menu.Item
-                                onClick={() => {
-                                  resetAll();
-                                  router.push('/');
-                                }}
+                                onClick={() => router.push('/')}
                                 className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2 text-xs font-medium text-zinc-200 hover:text-white hover:bg-white/15 transition-colors cursor-pointer outline-none select-none"
                               >
                                 <UserIcon className="h-3.5 w-3.5 text-zinc-400" />

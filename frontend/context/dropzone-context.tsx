@@ -26,6 +26,16 @@ export type StepStatus =
   | "uploading"
   | "uploaded"
   | "processing"
+  | "transcribing"
+  | "summarizing"
+  | "completed"
+  | "error";
+
+export type PipelinePhase =
+  | "idle"
+  | "upload"
+  | "transcribing"
+  | "summarizing"
   | "completed"
   | "error";
 
@@ -46,12 +56,17 @@ interface DropzoneContextType {
   setSelectedLanguage: (lang: string) => void;
 
   status: StepStatus;
+  pipelinePhase: PipelinePhase;
   uploadProgress: number;
+  transcriptionProgress: number;
+  summarizingProgress: number;
   pipelineStage: string;
   activeTaskId: string | null;
   isCancelling: boolean;
   elapsedSeconds: number;
   isWorking: boolean;
+  isTranscribing: boolean;
+  isSummarizing: boolean;
 
   completedResult: CompletedResult | null;
   isExpanded: boolean;
@@ -79,7 +94,10 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
   const [selectedLanguage, setSelectedLanguage] = useState("en-IN");
 
   const [status, setStatus] = useState<StepStatus>("idle");
+  const [pipelinePhase, setPipelinePhase] = useState<PipelinePhase>("idle");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [transcriptionProgress, setTranscriptionProgress] = useState(0);
+  const [summarizingProgress, setSummarizingProgress] = useState(0);
   const [pipelineStage, setPipelineStage] = useState<string>("INITIALIZING");
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [activeFileKey, setActiveFileKey] = useState<string | null>(null);
@@ -93,10 +111,24 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
   const isPollingCheckInProgressRef = useRef(false);
   const activePollingTaskIdRef = useRef<string | null>(null);
   const hasNotifiedCompletionRef = useRef<string | null>(null);
+
   const isWorking =
     status === "requesting_url" ||
     status === "uploading" ||
-    status === "processing";
+    status === "processing" ||
+    status === "transcribing" ||
+    status === "summarizing";
+
+  const isTranscribing =
+    status === "transcribing" ||
+    (status === "processing" &&
+      pipelineStage?.toUpperCase() !== "SUMMARIZING" &&
+      pipelineStage?.toUpperCase() !== "COMPLETED");
+
+  const isSummarizing =
+    status === "summarizing" ||
+    ((status === "processing" || status === "transcribing") &&
+      pipelineStage?.toUpperCase() === "SUMMARIZING");
 
   // Rehydrate completed result or active state from sessionStorage on browser mount
   useEffect(() => {
@@ -107,22 +139,37 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
         if (parsed.status === "completed" && parsed.completedResult) {
           setTimeout(() => {
             setStatus("completed");
+            setPipelinePhase("completed");
             setCompletedResult(parsed.completedResult);
             setFileName(parsed.fileName || "recording.wav");
             setFileSize(parsed.fileSize || 0);
             setSelectedLanguage(parsed.selectedLanguage || "en-IN");
+            setTranscriptionProgress(100);
+            setSummarizingProgress(100);
             setIsExpanded(true);
           }, 10);
-        } else if (parsed.status === "processing" && parsed.activeTaskId) {
-          // Resume monitoring active background task if refreshed
+        } else if (
+          (parsed.status === "processing" ||
+            parsed.status === "transcribing" ||
+            parsed.status === "summarizing") &&
+          parsed.activeTaskId
+        ) {
           setTimeout(() => {
-            setStatus("processing");
+            const nextStatus: StepStatus =
+              parsed.status === "summarizing" || parsed.pipelineStage === "SUMMARIZING"
+                ? "summarizing"
+                : "transcribing";
+            setStatus(nextStatus);
+            setPipelinePhase(nextStatus === "summarizing" ? "summarizing" : "transcribing");
             setActiveTaskId(parsed.activeTaskId);
             setActiveFileKey(parsed.activeFileKey || null);
             setFileName(parsed.fileName || "recording.wav");
             setFileSize(parsed.fileSize || 0);
             setSelectedLanguage(parsed.selectedLanguage || "en-IN");
             setPipelineStage(parsed.pipelineStage || "IN_PROGRESS");
+            setTranscriptionProgress(parsed.transcriptionProgress || 15);
+            setSummarizingProgress(parsed.summarizingProgress || 0);
+            setElapsedSeconds(parsed.elapsedSeconds || 0);
             setIsExpanded(true);
           }, 10);
         }
@@ -140,6 +187,7 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
           STORAGE_KEY,
           JSON.stringify({
             status: "completed",
+            pipelinePhase: "completed",
             fileName,
             fileSize,
             selectedLanguage,
@@ -147,17 +195,21 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
             isExpanded: true,
           }),
         );
-      } else if (status === "processing" && activeTaskId) {
+      } else if (isWorking && activeTaskId) {
         sessionStorage.setItem(
           STORAGE_KEY,
           JSON.stringify({
-            status: "processing",
+            status,
+            pipelinePhase,
             activeTaskId,
             activeFileKey,
             fileName,
             fileSize,
             selectedLanguage,
             pipelineStage,
+            transcriptionProgress,
+            summarizingProgress,
+            elapsedSeconds,
             isExpanded: true,
           }),
         );
@@ -169,6 +221,7 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
     }
   }, [
     status,
+    pipelinePhase,
     completedResult,
     fileName,
     fileSize,
@@ -176,7 +229,11 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
     activeTaskId,
     activeFileKey,
     pipelineStage,
+    transcriptionProgress,
+    summarizingProgress,
+    elapsedSeconds,
     isExpanded,
+    isWorking,
   ]);
 
   // Live timer tracking elapsed time during active job
@@ -195,6 +252,52 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
       if (timer) clearInterval(timer);
     };
   }, [isWorking]);
+
+  // Smooth persistent progress ticker during transcription phase (5% -> 88%)
+  useEffect(() => {
+    if (!isTranscribing) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setTranscriptionProgress((current) => {
+        if (current >= 88) return current;
+        const remaining = 88 - current;
+        const inc = remaining > 20 ? Math.random() * 2.5 + 0.5 : Math.random() * 0.7;
+        return Math.min(Math.round(current + inc), 88);
+      });
+    }, 900);
+
+    return () => clearInterval(timer);
+  }, [isTranscribing, isSummarizing, status]);
+
+  // Smooth persistent progress ticker during summarizing phase (0% -> 97%)
+  useEffect(() => {
+    let completionTimer: NodeJS.Timeout | null = null;
+
+    if (!isSummarizing) {
+      if (status === "completed") {
+        completionTimer = setTimeout(() => {
+          setSummarizingProgress(100);
+        }, 0);
+      }
+
+      return () => {
+        if (completionTimer) clearTimeout(completionTimer);
+      };
+    }
+
+    const timer = setInterval(() => {
+      setSummarizingProgress((current) => {
+        if (current >= 97) return current;
+        const remaining = 97 - current;
+        const inc = remaining > 20 ? Math.random() * 5 + 2 : Math.random() * 1.5;
+        return Math.min(Math.round(current + inc), 97);
+      });
+    }, 450);
+
+    return () => clearInterval(timer);
+  }, [isSummarizing, status]);
 
   const stopPolling = useCallback(() => {
     if (pollIntervalRef.current) {
@@ -216,7 +319,10 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
     setFileSize(null);
     setAudioPreviewUrl(null);
     setStatus("idle");
+    setPipelinePhase("idle");
     setUploadProgress(0);
+    setTranscriptionProgress(0);
+    setSummarizingProgress(0);
     setPipelineStage("INITIALIZING");
     setActiveTaskId(null);
     setActiveFileKey(null);
@@ -320,6 +426,7 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
           if (!check.success || check.status === "FAILED") {
             stopPolling();
             setStatus("error");
+            setPipelinePhase("error");
             toast.add({
               title: "Transcription error",
               description: check.error || "Gnani ASR transcription failed.",
@@ -332,10 +439,16 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
             stopPolling();
 
             // Visually transition through SUMMARIZING before completing
+            setStatus("summarizing");
+            setPipelinePhase("summarizing");
             setPipelineStage("SUMMARIZING");
+            setTranscriptionProgress(100);
 
             setTimeout(() => {
               setStatus("completed");
+              setPipelinePhase("completed");
+              setPipelineStage("COMPLETED");
+              setSummarizingProgress(100);
               setCompletedResult({
                 transcript: check.transcript || "",
                 summary: check.summary || "",
@@ -354,7 +467,16 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
               }
             }, 1000);
           } else if (check.lifecycleStage || check.status) {
-            setPipelineStage(check.lifecycleStage || check.status || "IN_PROGRESS");
+            const rawStage = (check.lifecycleStage || check.status || "IN_PROGRESS").toUpperCase();
+            setPipelineStage(rawStage);
+            if (rawStage === "SUMMARIZING") {
+              setStatus("summarizing");
+              setPipelinePhase("summarizing");
+              setTranscriptionProgress(100);
+            } else {
+              setStatus("transcribing");
+              setPipelinePhase("transcribing");
+            }
           }
         } catch (err) {
           console.error("Transcription polling error:", err);
@@ -363,15 +485,22 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
         }
       };
 
-      // Poll every 10 seconds to catch the summarization stage promptly
-      pollIntervalRef.current = setInterval(poll, 10000);
+      // Initial instant check
+      poll();
+
+      // Poll every 3.5 seconds to track batch lifecycle promptly as per architecture
+      pollIntervalRef.current = setInterval(poll, 3500);
     },
     [stopPolling],
   );
 
   // If page was refreshed during processing, resume polling
   useEffect(() => {
-    if (status === "processing" && activeTaskId && activeFileKey) {
+    if (
+      (status === "processing" || status === "transcribing" || status === "summarizing") &&
+      activeTaskId &&
+      activeFileKey
+    ) {
       startPolling(activeTaskId, activeFileKey);
     }
   }, [status, activeTaskId, activeFileKey, startPolling]);
@@ -395,6 +524,7 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
 
       if (presigned.statusCode === 403) {
         setStatus("idle");
+        setPipelinePhase("idle");
         toast.add({
           title: "Sign in required",
           description: "Please sign in to upload and transcribe audio.",
@@ -406,6 +536,7 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
 
       if (!presigned.success || !presigned.uploadUrl || !presigned.fileKey) {
         setStatus("error");
+        setPipelinePhase("error");
         toast.add({
           title: "Upload authorization failed",
           description: presigned.error || "Failed to secure upload signature.",
@@ -416,6 +547,7 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
 
       setIsExpanded(true);
       setStatus("uploading");
+      setPipelinePhase("upload");
       setUploadProgress(0);
       setActiveFileKey(presigned.fileKey);
 
@@ -447,8 +579,10 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
         xhr.send(selectedFile);
       });
 
-      setStatus("processing");
+      setStatus("transcribing");
+      setPipelinePhase("transcribing");
       setPipelineStage("QUEUED");
+      setTranscriptionProgress(5);
 
       const taskRes = await startAudioTranscription(
         presigned.fileKey,
@@ -458,6 +592,7 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
 
       if (!taskRes.success || !taskRes.taskId) {
         setStatus("error");
+        setPipelinePhase("error");
         toast.add({
           title: "Pipeline dispatch failed",
           description: taskRes.error || "Failed to trigger transcription.",
@@ -471,6 +606,7 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
       startPolling(taskId, presigned.fileKey);
     } catch (err: unknown) {
       setStatus("error");
+      setPipelinePhase("error");
       toast.add({
         title: "Processing error",
         description:
@@ -492,12 +628,17 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
         selectedLanguage,
         setSelectedLanguage,
         status,
+        pipelinePhase,
         uploadProgress,
+        transcriptionProgress,
+        summarizingProgress,
         pipelineStage,
         activeTaskId,
         isCancelling,
         elapsedSeconds,
         isWorking,
+        isTranscribing,
+        isSummarizing,
         completedResult,
         isExpanded,
         setIsExpanded,

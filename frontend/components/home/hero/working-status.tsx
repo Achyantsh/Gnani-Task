@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { Check } from "lucide-react";
+import { useDropzoneContext } from "@/context/dropzone-context";
 
 export type StepStatus =
   | "idle"
@@ -9,6 +10,8 @@ export type StepStatus =
   | "uploading"
   | "uploaded"
   | "processing"
+  | "transcribing"
+  | "summarizing"
   | "completed"
   | "error";
 
@@ -17,37 +20,6 @@ export interface WorkingStatusProps {
   pipelineStage: string;
   uploadProgress: number;
   elapsedSeconds: number;
-}
-
-function useSimulatedProgress(
-  active: boolean,
-  speed: "normal" | "fast",
-  max: number
-) {
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    if (!active) {
-      setTimeout(() => setProgress(0), 10);
-      return;
-    }
-    const interval = setInterval(() => {
-      setProgress((current) => {
-        if (current >= max) return current;
-        const remaining = max - current;
-        let increment;
-        if (speed === "fast") {
-          increment = remaining > 20 ? Math.random() * 5 + 2 : Math.random() * 1.5;
-        } else {
-          increment = remaining > 20 ? Math.random() * 2.5 + 0.5 : Math.random() * 0.7;
-        }
-        return Math.min(current + increment, max);
-      });
-    }, speed === "fast" ? 450 : 900);
-    return () => clearInterval(interval);
-  }, [active, speed, max]);
-
-  return progress;
 }
 
 function LoadingBar({
@@ -174,10 +146,10 @@ function Stage({
         flex flex-col h-full rounded-xl border backdrop-blur-xl p-3.5
         transition-all duration-500
         ${active
-          ? "border-white/25 bg-white/[0.10]"
+          ? "border-white/30 bg-white/[0.10]"
           : completed
-          ? "border-white/18 bg-white/[0.07]"
-          : "border-white/[0.09] bg-white/[0.04]"
+          ? "border-white/20 bg-white/[0.07]"
+          : "border-white/10 bg-white/[0.03]"
         }
       `}
     >
@@ -187,37 +159,39 @@ function Stage({
           className={`
             flex h-7 w-7 shrink-0 items-center justify-center rounded-full border
             ${completed
-              ? "border-white/35 bg-white/[0.14]"
+              ? "border-white/40 bg-white/[0.18]"
               : active
-              ? "border-white/28 bg-white/[0.10]"
-              : "border-white/12 bg-white/[0.04]"
+              ? "border-white/30 bg-white/[0.12]"
+              : "border-white/15 bg-white/[0.04]"
             }
           `}
         >
           {completed ? (
-            <Check className="h-3.5 w-3.5 text-white/85" strokeWidth={2.2} />
+            <Check className="h-3.5 w-3.5 text-white" strokeWidth={2.4} />
           ) : active ? (
-            <span className="h-3.5 w-3.5 rounded-full border-2 border-white/20 border-t-white/75 animate-spin block" />
+            <span className="h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin block" />
           ) : (
-            <span className="text-[9px] font-semibold text-white/35">{number}</span>
+            <span className="text-[9px] font-semibold text-white/60">{number}</span>
           )}
         </div>
 
         <div className="min-w-0">
           <p
             className={`font-semibold truncate leading-tight ${
-              active || completed ? "text-white/85" : "text-white/45"
+              active || completed ? "text-white" : "text-white/60"
             }`}
           >
             {label}
           </p>
-          <p className="text-sm text-white/70 mt-0.5 leading-tight">
-            {completed
-              ? sublabel ?? "Complete"
+          <p className="text-xs sm:text-sm text-sky-200/90 mt-0.5 leading-tight font-mono font-medium">
+            {sublabel
+              ? sublabel
+              : completed
+              ? "COMPLETED"
               : active
               ? `${Math.round(progress)}%`
               : waiting
-              ? "Waiting"
+              ? "QUEUED"
               : ""}
           </p>
         </div>
@@ -247,91 +221,192 @@ function Stage({
 
 
 
+const GNANI_LIFECYCLE_STAGES = [
+  "CREATED",
+  "STARTING",
+  "QUEUED",
+  "IN_PROGRESS",
+  "COMPLETED",
+] as const;
+
 export function WorkingStatus({
   status,
   pipelineStage,
   uploadProgress,
 }: WorkingStatusProps) {
+  const dropzoneContext = useDropzoneContext();
 
+  const normalizedStage = (pipelineStage || "").toUpperCase();
 
   const uploadActive = status === "requesting_url" || status === "uploading";
-  const uploadDone   = status === "uploaded" || status === "processing" || status === "completed";
+  const uploadDone =
+    status === "uploaded" ||
+    status === "processing" ||
+    status === "transcribing" ||
+    status === "summarizing" ||
+    status === "completed";
 
   const transcriptionActive =
-    status === "processing" &&
-    ["CREATED","STARTING","QUEUED","DOWNLOADING","IN_PROGRESS","TRANSCRIBING"].includes(pipelineStage);
+    (status === "processing" || status === "transcribing") &&
+    [
+      "CREATED",
+      "STARTING",
+      "QUEUED",
+      "DOWNLOADING",
+      "IN_PROGRESS",
+      "TRANSCRIBING",
+    ].includes(normalizedStage);
 
-  const transcriptionDone = status === "processing" && pipelineStage === "SUMMARIZING";
-  const aiActive          = status === "processing" && pipelineStage === "SUMMARIZING";
-  const aiDone            = status === "completed";
+  const transcriptionDone =
+    status === "summarizing" ||
+    status === "completed" ||
+    normalizedStage === "SUMMARIZING" ||
+    normalizedStage === "COMPLETED";
 
-  
-  const transcriptionProgress = useSimulatedProgress(transcriptionActive, "normal", 88);
-  const aiProgress            = useSimulatedProgress(aiActive, "normal", 97);
+  const aiActive =
+    status === "summarizing" ||
+    ((status === "processing" || status === "transcribing") &&
+      normalizedStage === "SUMMARIZING");
 
+  const aiDone = status === "completed" || normalizedStage === "COMPLETED";
 
-  let title    = "Processing Audio";
+  // Map Gnani API job status to index: CREATED (0) -> STARTING (1) -> QUEUED (2) -> IN_PROGRESS (3) -> COMPLETED (4)
+  let gnaniCurrentIndex = -1;
+  if (normalizedStage === "CREATED") {
+    gnaniCurrentIndex = 0;
+  } else if (normalizedStage === "STARTING") {
+    gnaniCurrentIndex = 1;
+  } else if (normalizedStage === "QUEUED") {
+    gnaniCurrentIndex = 2;
+  } else if (
+    normalizedStage === "IN_PROGRESS" ||
+    normalizedStage === "TRANSCRIBING" ||
+    normalizedStage === "DOWNLOADING"
+  ) {
+    gnaniCurrentIndex = 3;
+  } else if (
+    normalizedStage === "SUMMARIZING" ||
+    normalizedStage === "COMPLETED" ||
+    status === "completed"
+  ) {
+    gnaniCurrentIndex = 4;
+  }
+
+  const transcriptionProgress =
+    dropzoneContext?.transcriptionProgress ?? (transcriptionDone ? 100 : 0);
+  const aiProgress = dropzoneContext?.summarizingProgress ?? (aiDone ? 100 : 0);
+
+  let title = "Processing Audio";
   let subtitle = "Preparing...";
 
   if (uploadActive) {
-    title    = "Uploading Audio";
-    subtitle = status === "uploading" ? `${uploadProgress}% uploaded` : "Preparing upload...";
+    title = "Uploading Audio";
+    subtitle = "Direct browser-to-R2 upload in progress...";
+  } else if (transcriptionActive) {
+    title = "Transcribing Audio";
+    if (normalizedStage === "CREATED") {
+      subtitle = "Job created in Gnani batch service (CREATED)...";
+    } else if (normalizedStage === "STARTING") {
+      subtitle = "Initializing batch speech recognition (STARTING)...";
+    } else if (normalizedStage === "QUEUED") {
+      subtitle = "Job placed in Gnani ASR priority queue (QUEUED)...";
+    } else if (
+      normalizedStage === "IN_PROGRESS" ||
+      normalizedStage === "TRANSCRIBING"
+    ) {
+      subtitle =
+        "Gnani Prisma v2.5 (IN_PROGRESS)...";
+    } else {
+      subtitle = "Processing audio with Gnani Batch STT...";
+    }
+  } else if (aiActive) {
+    title = "Generating AI Summary";
+    subtitle = "Synthesizing executive summary with Gemini...";
+  } else if (aiDone) {
+    title = "Processing Complete";
+    subtitle = "Your transcript and AI summary are ready";
   }
-  if (transcriptionActive) {
-    title    = "Transcribing Audio";
-    subtitle = "Converting speech to text...";
-  }
-  if (aiActive) {
-    title    = "Generating AI Summary";
-    subtitle = "Analyzing your transcript...";
-  }
-  if (aiDone) {
-    title    = "Processing Complete";
-    subtitle = "Your audio is ready";
-  }
+
+  // Exact Gnani stage label to display in Transcription card sublabel
+  const gnaniStageLabel =
+    transcriptionDone || aiDone
+      ? "COMPLETED"
+      : normalizedStage === "CREATED"
+      ? "CREATED"
+      : normalizedStage === "STARTING"
+      ? "STARTING"
+      : normalizedStage === "QUEUED"
+      ? "QUEUED"
+      : normalizedStage === "IN_PROGRESS" || normalizedStage === "TRANSCRIBING"
+      ? `IN_PROGRESS · ${Math.round(transcriptionProgress)}%`
+      : transcriptionActive
+      ? `${normalizedStage || "IN_PROGRESS"} · ${Math.round(transcriptionProgress)}%`
+      : "QUEUED";
 
   return (
     <div className="flex-1 flex flex-col justify-center py-2">
       <div
         className="
-          
           w-full rounded-2xl
-          border border-white/[0.14]
-          bg-white/[0.055]
+          border border-white/20
+          bg-white/[0.06]
           backdrop-blur-2xl
-          shadow-[0_8px_40px_rgba(0,0,0,0.18)]
+          shadow-[0_8px_40px_rgba(0,0,0,0.22)]
           p-5
-          flex flex-col gap-5 flex-1
+          flex flex-col gap-4 flex-1
         "
       >
-
-    
+        {/* Header */}
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <h4 className="text-lg font-semibold text-white/85 leading-tight">{title}</h4>
-            <p className=" text-white/60 mt-1 leading-tight">{subtitle}</p>
+            <h4 className="text-base sm:text-lg font-bold text-white tracking-tight leading-tight">
+              {title}
+            </h4>
+            <p className="text-xs sm:text-sm text-white/80 mt-1 leading-tight truncate">
+              {subtitle}
+            </p>
           </div>
 
-          {aiDone ? (
-            <Check className="h-4 w-4 text-white/70 shrink-0" strokeWidth={2} />
-          ) : (
-            <span className="relative flex h-2 w-2 shrink-0">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-white/30 animate-ping" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-white/60" />
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold border border-white/20 bg-white/[0.08] text-white shadow-sm backdrop-blur-md">
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  aiDone ? "bg-emerald-400" : "bg-sky-400"
+                }`}
+              />
+              <span className="uppercase text-[10px] sm:text-[11px] tracking-wider text-white">
+                {aiDone
+                  ? "COMPLETED"
+                  : aiActive
+                  ? "AI INSIGHTS"
+                  : transcriptionActive
+                  ? `GNANI: ${normalizedStage || "IN_PROGRESS"}`
+                  : "UPLOADING"}
+              </span>
             </span>
-          )}
+
+            {aiDone && (
+              <Check className="h-4 w-4 text-emerald-400 shrink-0" strokeWidth={2.5} />
+            )}
+          </div>
         </div>
 
-    
+        {/* User-Facing Progress Milestones (Matching Architecture Diagram 04) */}
         <div className="flex items-stretch w-full gap-0">
-
           <div className="flex-1">
             <Stage
               number="1"
               label="Upload"
               completed={uploadDone}
               active={uploadActive}
-              waiting={false}
+              waiting={!uploadActive && !uploadDone}
+              sublabel={
+                uploadDone
+                  ? "COMPLETED"
+                  : uploadActive
+                  ? `IN_PROGRESS · ${uploadProgress}%`
+                  : "QUEUED"
+              }
               progress={uploadActive ? uploadProgress : uploadDone ? 100 : 0}
             />
           </div>
@@ -348,11 +423,10 @@ export function WorkingStatus({
               completed={transcriptionDone || aiDone}
               active={transcriptionActive}
               waiting={!transcriptionActive && !transcriptionDone && !aiDone}
+              sublabel={gnaniStageLabel}
               progress={transcriptionDone || aiDone ? 100 : transcriptionProgress}
             >
-              {transcriptionActive ? (
-                <Waveform active />
-              ) : null}
+              {transcriptionActive ? <Waveform active /> : null}
             </Stage>
           </div>
 
@@ -361,7 +435,6 @@ export function WorkingStatus({
             completed={transcriptionDone && aiDone}
           />
 
-        
           <div className="flex-1">
             <Stage
               number="3"
@@ -369,17 +442,90 @@ export function WorkingStatus({
               completed={aiDone}
               active={aiActive}
               waiting={!aiActive && !aiDone}
+              sublabel={
+                aiDone
+                  ? "COMPLETED"
+                  : aiActive
+                  ? `IN_PROGRESS · ${Math.round(aiProgress)}%`
+                  : "QUEUED"
+              }
               progress={aiDone ? 100 : aiProgress}
               fast
             >
-              {aiActive ? (
-                <PulsingOrb active />
-              ) : null}
+              {aiActive ? <PulsingOrb active /> : null}
             </Stage>
           </div>
-
         </div>
 
+        {/* Gnani Batch Lifecycle Track (Directly from Architecture Diagram 04) */}
+        <div className="rounded-xl border border-white/18 bg-white/[0.05] p-3 backdrop-blur-xl">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <span className="h-1.5 w-1.5 rounded-full bg-sky-300 shrink-0 shadow-[0_0_8px_rgba(125,211,252,0.8)]" />
+              <span className="text-[10px] font-mono tracking-wider uppercase text-sky-300 font-bold">
+                GNANI BATCH LIFECYCLE
+              </span>
+            </div>
+            <span className="text-[10px] font-mono text-white/70">
+              API Status:{" "}
+              <span className="font-bold text-white uppercase">
+                {normalizedStage ||
+                  (uploadActive ? "WAITING (UPLOAD FIRST)" : "IDLE")}
+              </span>
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between gap-1 sm:gap-2">
+            {GNANI_LIFECYCLE_STAGES.map((stageName, idx) => {
+              const isPast = gnaniCurrentIndex > idx;
+              const isCurrent =
+                gnaniCurrentIndex === idx &&
+                (transcriptionActive ||
+                  (idx === 4 && (transcriptionDone || aiDone)));
+              const isFuture = gnaniCurrentIndex < idx;
+
+              return (
+                <React.Fragment key={stageName}>
+                  <div
+                    className={`
+                      flex-1 flex items-center justify-center gap-1.5 py-1.5 px-1.5 sm:px-2 rounded-lg border text-center transition-all duration-300
+                      ${
+                        isCurrent
+                          ? "border-sky-300 bg-sky-400/25 text-white font-bold shadow-[0_0_14px_rgba(56,189,248,0.35)] ring-1 ring-sky-300"
+                          : isPast
+                          ? "border-white/25 bg-white/[0.12] text-white font-semibold"
+                          : "border-white/10 bg-white/[0.03] text-white/50 font-medium"
+                      }
+                    `}
+                  >
+                    {isPast ? (
+                      <Check
+                        className="h-3 w-3 text-sky-200 shrink-0"
+                        strokeWidth={2.6}
+                      />
+                    ) : isCurrent ? (
+                      <span className="h-2 w-2 rounded-full border-2 border-white border-t-transparent animate-spin shrink-0" />
+                    ) : (
+                      <span className="h-1.5 w-1.5 rounded-full bg-white/30 shrink-0" />
+                    )}
+                    <span className="font-mono text-[9px] sm:text-[10px] tracking-wider truncate">
+                      {stageName}
+                    </span>
+                  </div>
+                  {idx < GNANI_LIFECYCLE_STAGES.length - 1 && (
+                    <div
+                      className={`h-[2px] w-2 sm:w-3 shrink-0 rounded-full transition-all duration-300 ${
+                        isPast || (isCurrent && idx < gnaniCurrentIndex)
+                          ? "bg-sky-400"
+                          : "bg-white/20"
+                      }`}
+                    />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );
