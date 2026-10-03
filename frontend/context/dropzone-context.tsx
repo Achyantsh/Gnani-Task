@@ -438,7 +438,7 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
           if (check.status === "COMPLETED") {
             stopPolling();
 
-            // Visually transition through SUMMARIZING before completing
+            
             setStatus("summarizing");
             setPipelinePhase("summarizing");
             setPipelineStage("SUMMARIZING");
@@ -488,7 +488,7 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
       // Initial instant check
       poll();
 
-      // Poll every 3.5 seconds to track batch lifecycle promptly as per architecture
+      // Poll every 30 seconds 
       pollIntervalRef.current = setInterval(poll, 30000);
     },
     [stopPolling],

@@ -109,6 +109,10 @@ async def get_transcription_status(task_id: str):
     if task and task.get("error"):
         return TaskStatusResponse(status="FAILED", error=task["error"])
 
+    # Short 4-second in-memory cache to prevent exhausting Gnani's rate limits
+    if task and task.get("cached_status") and (time.time() - task.get("last_checked", 0) < 4.0):
+        return TaskStatusResponse(**task["cached_status"])
+
     try:
      
         job_info = await get_batch_job_status(task_id)
@@ -116,7 +120,11 @@ async def get_transcription_status(task_id: str):
 
        
         if job_status in ("CREATED", "STARTING", "QUEUED", "IN_PROGRESS"):
-            return TaskStatusResponse(status="TRANSCRIBING", lifecycle_stage=job_status)
+            status_data = {"status": "TRANSCRIBING", "lifecycle_stage": job_status}
+            if task:
+                task["last_checked"] = time.time()
+                task["cached_status"] = status_data
+            return TaskStatusResponse(**status_data)
 
         
         if job_status in ("FAILED", "PARTIAL_FAILURE", "START_FAILED", "CANCELLED"):

@@ -1,4 +1,5 @@
 import os
+import asyncio
 import httpx
 from gnani.stt import GnaniSTTClient
 
@@ -49,7 +50,12 @@ async def create_batch_job(file_url: str, language_code: str = "en-IN") -> str:
     }
 
     async with httpx.AsyncClient(timeout=30.0) as httpClient:
-        response = await httpClient.post(GNANI_BATCH_URL, json=payload, headers=get_headers())
+        for attempt in range(3):
+            response = await httpClient.post(GNANI_BATCH_URL, json=payload, headers=get_headers())
+            if response.status_code == 429 and attempt < 2:
+                await asyncio.sleep(2 * (attempt + 1))
+                continue
+            break
 
         if response.status_code not in (200, 201):
             raise RuntimeError(f"Gnani job creation failed: {response.text}")
@@ -66,7 +72,12 @@ async def start_batch_job(job_id: str) -> None:
     url = f"{GNANI_BATCH_URL}/{job_id}/start"
 
     async with httpx.AsyncClient(timeout=30.0) as httpClient:
-        response = await httpClient.post(url, headers=get_headers())
+        for attempt in range(3):
+            response = await httpClient.post(url, headers=get_headers())
+            if response.status_code == 429 and attempt < 2:
+                await asyncio.sleep(2 * (attempt + 1))
+                continue
+            break
 
         if response.status_code not in (200, 202):
             raise RuntimeError(f"Failed to start Gnani job: {response.text}")
@@ -77,7 +88,16 @@ async def get_batch_job_status(job_id: str) -> dict:
     url = f"{GNANI_BATCH_URL}/{job_id}"
 
     async with httpx.AsyncClient(timeout=15.0) as client:
-        response = await client.get(url, headers=get_headers())
+        for attempt in range(2):
+            response = await client.get(url, headers=get_headers())
+            if response.status_code == 429 and attempt < 1:
+                await asyncio.sleep(2)
+                continue
+            break
+
+        if response.status_code == 429:
+            # Soft-throttle: treat transient rate limit as still running rather than crashing
+            return {"status": "IN_PROGRESS"}
 
         if response.status_code != 200:
             raise RuntimeError(f"Failed to fetch Gnani job status: {response.text}")
