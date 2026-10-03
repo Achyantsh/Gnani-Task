@@ -22,7 +22,7 @@ AudioNote is a full-stack audio notes platform built around one simple flow:
 
 Recordings go straight from the browser to object storage, are transcribed asynchronously with Gnani Batch STT, summarized with Google Gemini, and saved so they can be reopened at any time.
 
-![AudioNote system architecture](frontend/public/architecture/AudioNote-System-Architercture.svg)
+![AudioNote system architecture](frontend/public/architecture/AudioNote-System-Architecture.svg)
 
 ## Features
 
