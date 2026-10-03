@@ -286,7 +286,7 @@ export default function ArchitecturePage() {
   return (
     <main className="min-h-screen px-4 pb-24 pt-28 sm:px-6 sm:pt-36 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-24">
-        {/* Hero */}
+        
         <section className="relative overflow-hidden rounded-[36px] border border-white/15 bg-slate-900/30 backdrop-blur-xl px-6 py-14 text-center sm:px-12 sm:py-20 shadow-[0_20px_50px_rgba(0,0,0,0.4)]">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(125,211,252,0.22),transparent_48%)]" />
 
@@ -304,8 +304,8 @@ export default function ArchitecturePage() {
             </h1>
 
             <p className="mx-auto max-w-3xl text-base sm:text-lg lg:text-xl leading-relaxed text-slate-300 font-normal">
-              AudioNote moves each recording through a small, explicit pipeline:
-              upload to object storage, speech recognition through Gnani, summary
+              AudioNote moves each recording through a small, explicit pipeline.
+              Upload to object storage, speech recognition through Gnani, summary
               generation, and persistent history for the user.
             </p>
 
@@ -330,7 +330,6 @@ export default function ArchitecturePage() {
           </div>
         </section>
 
-        {/* One-line architecture */}
         <section className="space-y-8">
           <SectionHeading
             eyebrow="At a glance"
@@ -379,7 +378,7 @@ export default function ArchitecturePage() {
           </div>
         </section>
 
-        {/* Main diagram */}
+      
         <section className="space-y-8">
           <SectionHeading
             eyebrow="Architecture diagram"
@@ -397,7 +396,6 @@ export default function ArchitecturePage() {
           />
         </section>
 
-        {/* Lifecycle */}
         <section className="space-y-8">
           <SectionHeading
             eyebrow="Processing lifecycle"
@@ -449,7 +447,6 @@ export default function ArchitecturePage() {
           </div>
         </section>
 
-        {/* End-to-end sequence */}
         <section className="space-y-8">
           <SectionHeading
             eyebrow="Request sequence"
@@ -466,7 +463,6 @@ export default function ArchitecturePage() {
           />
         </section>
 
-        {/* Sync vs Async */}
         <section className="space-y-8">
           <SectionHeading
             eyebrow="Execution model"
@@ -600,7 +596,6 @@ export default function ArchitecturePage() {
           </div>
         </section>
 
-        {/* Stack */}
         <section className="space-y-8">
           <SectionHeading
             eyebrow="Implementation map"
@@ -644,7 +639,6 @@ export default function ArchitecturePage() {
           </div>
         </section>
 
-        {/* Design notes */}
         <section className="space-y-8">
           <SectionHeading
             eyebrow="Design notes"
@@ -678,7 +672,7 @@ export default function ArchitecturePage() {
           </div>
         </section>
 
-        {/* Failure states */}
+       
         <section className="space-y-8">
           <SectionHeading
             eyebrow="Lifecycle & failure states"
@@ -720,7 +714,6 @@ export default function ArchitecturePage() {
           </GlassEffect>
         </section>
 
-        {/* Future improvements */}
         <section className="space-y-8">
           <SectionHeading
             eyebrow="Future improvements"
@@ -751,7 +744,7 @@ export default function ArchitecturePage() {
           </div>
         </section>
 
-        {/* Footer */}
+        
         <section className="rounded-[36px] border border-white/20 bg-gradient-to-br from-sky-500/[0.18] via-slate-900/70 to-cyan-500/[0.14] p-8 text-center sm:p-12 lg:p-16 shadow-[0_20px_50px_rgba(0,0,0,0.4)] backdrop-blur-xl">
           <div className="mx-auto max-w-3xl">
             <div className="mx-auto flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl border border-sky-300/30 bg-sky-500/15 text-sky-300 mb-6 shadow-inner">
