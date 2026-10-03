@@ -25,7 +25,7 @@ export interface TranscribeTaskResponse {
 }
 
 function getFastApiBaseUrl(): string {
-  let url = process.env.FASTAPI_URL || "http://localhost:8000";
+  let url = process.env.FASTAPI_URL!;
   if (!url.startsWith("http://") && !url.startsWith("https://")) {
     url = `http://${url}`;
   }

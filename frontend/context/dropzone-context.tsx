@@ -489,7 +489,7 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
       poll();
 
       // Poll every 3.5 seconds to track batch lifecycle promptly as per architecture
-      pollIntervalRef.current = setInterval(poll, 3500);
+      pollIntervalRef.current = setInterval(poll, 20000);
     },
     [stopPolling],
   );

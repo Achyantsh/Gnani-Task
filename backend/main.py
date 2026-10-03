@@ -15,7 +15,7 @@ app = FastAPI(
 
 allowed_origins = [
     origin.strip()
-    for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+    for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,https://gnani-task-ledu.onrender.com,https://gnani-task-one.vercel.app").split(",")
     if origin.strip()
 ]
 
