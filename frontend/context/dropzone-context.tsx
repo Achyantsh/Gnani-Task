@@ -80,6 +80,19 @@ interface DropzoneContextType {
 
 const STORAGE_KEY = "gnani_dropzone_state_v1";
 
+const GNANI_STAGE_RANKS: Record<string, number> = {
+  INITIALIZING: 0,
+  CREATED: 1,
+  STARTING: 2,
+  QUEUED: 3,
+  DOWNLOADING: 4,
+  IN_PROGRESS: 4,
+  TRANSCRIBING: 4,
+  FINALIZING: 5,
+  SUMMARIZING: 6,
+  COMPLETED: 7,
+};
+
 const DropzoneContext = createContext<DropzoneContextType | undefined>(
   undefined,
 );
@@ -166,7 +179,7 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
             setFileName(parsed.fileName || "recording.wav");
             setFileSize(parsed.fileSize || 0);
             setSelectedLanguage(parsed.selectedLanguage || "en-IN");
-            setPipelineStage(parsed.pipelineStage || "IN_PROGRESS");
+            setPipelineStage(parsed.pipelineStage || "STARTING");
             setTranscriptionProgress(parsed.transcriptionProgress || 15);
             setSummarizingProgress(parsed.summarizingProgress || 0);
             setElapsedSeconds(parsed.elapsedSeconds || 0);
@@ -271,7 +284,7 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(timer);
   }, [isTranscribing, isSummarizing, status]);
 
-  // Smooth persistent progress ticker during summarizing phase (0% -> 97%)
+
   useEffect(() => {
     let completionTimer: NodeJS.Timeout | null = null;
 
@@ -468,7 +481,11 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
             }, 1000);
           } else if (check.lifecycleStage || check.status) {
             const rawStage = (check.lifecycleStage || check.status || "IN_PROGRESS").toUpperCase();
-            setPipelineStage(rawStage);
+            setPipelineStage((current) => {
+              const currentRank = GNANI_STAGE_RANKS[current?.toUpperCase()] ?? 0;
+              const nextRank = GNANI_STAGE_RANKS[rawStage] ?? 4;
+              return nextRank >= currentRank ? rawStage : current;
+            });
             if (rawStage === "SUMMARIZING") {
               setStatus("summarizing");
               setPipelinePhase("summarizing");
@@ -488,8 +505,8 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
       // Initial instant check
       poll();
 
-      // Poll every 30 seconds 
-      pollIntervalRef.current = setInterval(poll, 30000);
+      // Poll every 4 seconds (aligns with backend rate-limiting cache)
+      pollIntervalRef.current = setInterval(poll, 4000);
     },
     [stopPolling],
   );
@@ -581,7 +598,7 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
 
       setStatus("transcribing");
       setPipelinePhase("transcribing");
-      setPipelineStage("QUEUED");
+      setPipelineStage("STARTING");
       setTranscriptionProgress(5);
 
       const taskRes = await startAudioTranscription(

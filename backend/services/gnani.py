@@ -88,16 +88,16 @@ async def get_batch_job_status(job_id: str) -> dict:
     url = f"{GNANI_BATCH_URL}/{job_id}"
 
     async with httpx.AsyncClient(timeout=15.0) as client:
-        for attempt in range(2):
+        for attempt in range(3):
             response = await client.get(url, headers=get_headers())
-            if response.status_code == 429 and attempt < 1:
-                await asyncio.sleep(2)
+            if response.status_code == 429 and attempt < 2:
+                await asyncio.sleep(1.5 * (attempt + 1))
                 continue
             break
 
         if response.status_code == 429:
-            # Soft-throttle: treat transient rate limit as still running rather than crashing
-            return {"status": "IN_PROGRESS"}
+            
+            return {"status": "RATE_LIMITED"}
 
         if response.status_code != 200:
             raise RuntimeError(f"Failed to fetch Gnani job status: {response.text}")
@@ -106,30 +106,57 @@ async def get_batch_job_status(job_id: str) -> dict:
 
 async def fetch_completed_transcript(job_id: str) -> tuple[str, float, list]:
 
-    url = f"{GNANI_BATCH_URL}/{job_id}/files?status=COMPLETED"
+    endpoints = [
+        f"{GNANI_BATCH_URL}/{job_id}/files",
+        f"{GNANI_BATCH_URL}/{job_id}/files?status=COMPLETED",
+    ]
 
     async with httpx.AsyncClient(timeout=25.0) as httpClient:
-        
-        resp = await httpClient.get(url, headers=get_headers())
+        transcript_url = None
+        last_error = "Could not retrieve completed files from Gnani."
 
-        if resp.status_code != 200:
-            raise RuntimeError("Could not retrieve completed files from Gnani.")
+        for attempt in range(4):
+            for url in endpoints:
+                try:
+                    resp = await httpClient.get(url, headers=get_headers())
+                    if resp.status_code == 200:
+                        data = resp.json().get("data", [])
+                        if data and "transcript_url" in data[0]:
+                            transcript_url = data[0]["transcript_url"]
+                            break
+                        elif data and data[0].get("error_message"):
+                            raise RuntimeError(data[0]["error_message"])
+                    elif resp.status_code == 429:
+                        last_error = f"Gnani rate limited ({resp.status_code})"
+                    else:
+                        last_error = f"Gnani files check returned {resp.status_code}"
+                except Exception as exc:
+                    last_error = str(exc)
 
-        data = resp.json().get("data", [])
+            if transcript_url:
+                break
 
-        if not data or "transcript_url" not in data[0]:
-            raise RuntimeError("Transcript URL missing in Gnani response.")
+            await asyncio.sleep(1.5 * (attempt + 1))
 
-        transcript_url = data[0]["transcript_url"]
+        if not transcript_url:
+            raise RuntimeError(last_error or "Could not retrieve completed files from Gnani.")
 
-        transcript_resp = await httpClient.get(transcript_url)
+        transcript_resp = None
+        for dl_attempt in range(3):
+            transcript_resp = await httpClient.get(transcript_url)
+            if transcript_resp.status_code == 200:
+                break
+            if transcript_resp.status_code == 429 and dl_attempt < 2:
+                await asyncio.sleep(1.5 * (dl_attempt + 1))
+                continue
+            break
 
-        if transcript_resp.status_code != 200:
+        if not transcript_resp or transcript_resp.status_code != 200:
             raise RuntimeError("Could not download transcript JSON from Gnani.")
 
         data = transcript_resp.json()
         full_transcript = data.get("full_transcript", "").strip()
-        duration = float(data.get("duration_seconds") or data[0].get("duration_seconds") or 0.0)
+        duration = float(data.get("duration_seconds") or 0.0)
         segments = data.get("segments", [])
 
         return full_transcript, duration, segments

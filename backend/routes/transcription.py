@@ -118,7 +118,11 @@ async def get_transcription_status(task_id: str):
         job_info = await get_batch_job_status(task_id)
         job_status = job_info.get("status", "UNKNOWN")
 
-       
+        if job_status == "RATE_LIMITED":
+            if task and task.get("cached_status"):
+                return TaskStatusResponse(**task["cached_status"])
+            return TaskStatusResponse(status="TRANSCRIBING", lifecycle_stage="STARTING")
+
         if job_status in ("CREATED", "STARTING", "QUEUED", "IN_PROGRESS"):
             status_data = {"status": "TRANSCRIBING", "lifecycle_stage": job_status}
             if task:
@@ -126,7 +130,6 @@ async def get_transcription_status(task_id: str):
                 task["cached_status"] = status_data
             return TaskStatusResponse(**status_data)
 
-        
         if job_status in ("FAILED", "PARTIAL_FAILURE", "START_FAILED", "CANCELLED"):
             fallback_err = job_info.get("cancel_reason") or f"Gnani job ended with status: {job_status}"
             error_message = await get_batch_failure_reason(task_id, fallback_err)
@@ -135,8 +138,11 @@ async def get_transcription_status(task_id: str):
             return TaskStatusResponse(status="FAILED", error=error_message)
 
         if job_status == "COMPLETED":
-            
-            transcript, duration, segments = await fetch_completed_transcript(task_id)
+            try:
+                transcript, duration, segments = await fetch_completed_transcript(task_id)
+            except Exception as file_exc:
+                print(f"Transcript files still finalizing for {task_id}: {file_exc}")
+                return TaskStatusResponse(status="TRANSCRIBING", lifecycle_stage="FINALIZING")
 
             file_key = task.get("file_key", "") if task else ""
             filename = task.get("filename", "recording.wav") if task else "recording.wav"

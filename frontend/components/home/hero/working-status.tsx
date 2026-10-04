@@ -255,6 +255,7 @@ export function WorkingStatus({
       "DOWNLOADING",
       "IN_PROGRESS",
       "TRANSCRIBING",
+      "FINALIZING",
     ].includes(normalizedStage);
 
   const transcriptionDone =
@@ -281,7 +282,8 @@ export function WorkingStatus({
   } else if (
     normalizedStage === "IN_PROGRESS" ||
     normalizedStage === "TRANSCRIBING" ||
-    normalizedStage === "DOWNLOADING"
+    normalizedStage === "DOWNLOADING" ||
+    normalizedStage === "FINALIZING"
   ) {
     gnaniCurrentIndex = 3;
   } else if (
@@ -316,6 +318,8 @@ export function WorkingStatus({
     ) {
       subtitle =
         "Gnani Prisma v2.5 (IN_PROGRESS)...";
+    } else if (normalizedStage === "FINALIZING") {
+      subtitle = "Finalizing transcription results...";
     } else {
       subtitle = "Processing audio with Gnani Batch STT...";
     }
@@ -339,9 +343,11 @@ export function WorkingStatus({
       ? "QUEUED"
       : normalizedStage === "IN_PROGRESS" || normalizedStage === "TRANSCRIBING"
       ? `IN_PROGRESS · ${Math.round(transcriptionProgress)}%`
+      : normalizedStage === "FINALIZING"
+      ? `FINALIZING · ${Math.round(transcriptionProgress)}%`
       : transcriptionActive
       ? `${normalizedStage || "IN_PROGRESS"} · ${Math.round(transcriptionProgress)}%`
-      : "QUEUED";
+      : "STARTING";
 
   return (
     <div className="flex-1 flex flex-col justify-center py-2">
