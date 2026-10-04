@@ -362,7 +362,7 @@ export function WorkingStatus({
           flex flex-col gap-4 flex-1
         "
       >
-        {/* Header */}
+      
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
             <h4 className="text-base sm:text-lg font-bold text-white tracking-tight leading-tight">
@@ -397,7 +397,7 @@ export function WorkingStatus({
           </div>
         </div>
 
-        {/* User-Facing Progress Milestones (Matching Architecture Diagram 04) */}
+        
         <div className="flex items-stretch w-full gap-0">
           <div className="flex-1">
             <Stage
@@ -463,7 +463,7 @@ export function WorkingStatus({
           </div>
         </div>
 
-        {/* Gnani Batch Lifecycle Track (Directly from Architecture Diagram 04) */}
+       
         <div className="rounded-xl border border-white/18 bg-white/[0.05] p-3 backdrop-blur-xl">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">

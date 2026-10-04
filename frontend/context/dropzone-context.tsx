@@ -266,7 +266,7 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
     };
   }, [isWorking]);
 
-  // Smooth persistent progress ticker during transcription phase (5% -> 88%)
+ 
   useEffect(() => {
     if (!isTranscribing) {
       return;
@@ -505,8 +505,8 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
       // Initial instant check
       poll();
 
-      // Poll every 4 seconds (aligns with backend rate-limiting cache)
-      pollIntervalRef.current = setInterval(poll, 4000);
+      // Poll every 10 seconds (aligns with backend rate-limiting cache)
+      pollIntervalRef.current = setInterval(poll, 10000);
     },
     [stopPolling],
   );
@@ -522,7 +522,7 @@ export function DropzoneProvider({ children }: { children: ReactNode }) {
     }
   }, [status, activeTaskId, activeFileKey, startPolling]);
 
-  // Clean up timer on unmount
+ 
   useEffect(() => {
     return () => {
       stopPolling();

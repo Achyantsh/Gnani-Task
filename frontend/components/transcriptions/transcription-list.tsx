@@ -11,8 +11,6 @@ import { GlassEffect } from "@/components/liquid";
 import { toast } from "@/components/ui/toast";
 import type { TranscriptionRecord } from "@/actions/transcriptions";
 
-/* ─── helpers ─── */
-
 function formatDuration(secs: number | null): string {
   if (!secs) return "—";
   const m = Math.floor(secs / 60);
@@ -59,7 +57,7 @@ function downloadTxt(text: string, filename: string, suffix: string) {
   URL.revokeObjectURL(url);
 }
 
-/* ─── copy button (text only, no icons) ─── */
+
 
 function CopyBtn({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false);
@@ -84,7 +82,7 @@ function CopyBtn({ text, label }: { text: string; label: string }) {
   );
 }
 
-/* ─── download button (text only, no icons) ─── */
+
 
 function DownloadBtn({
   text,
@@ -114,7 +112,6 @@ function DownloadBtn({
   );
 }
 
-/* ─── dialog content with GlassEffect ─── */
 
 function TranscriptionDialog({
   rec,
@@ -137,7 +134,7 @@ function TranscriptionDialog({
         className="!max-w-4xl w-full p-0 border-0 bg-transparent shadow-none ring-0 outline-none"
       >
         <GlassEffect className="w-full rounded-2xl sm:rounded-3xl border border-white/25 shadow-[0_24px_60px_rgba(0,0,0,0.5)] backdrop-blur-2xl overflow-hidden flex flex-col text-white">
-          {/* Header */}
+        
           <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/10 shrink-0">
             <div className="min-w-0 pr-4">
               <DialogTitle className="text-base sm:text-lg font-semibold text-white/90 truncate leading-tight">
@@ -161,9 +158,9 @@ function TranscriptionDialog({
             </DialogClose>
           </div>
 
-          {/* Body: side-by-side panels */}
+        
           <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-white/10 max-h-[65vh] overflow-hidden">
-            {/* AI Summary */}
+        
             <div className="flex flex-col p-5 sm:p-6 gap-3 overflow-hidden">
               <div className="flex items-center justify-between shrink-0">
                 <span className="text-base font-semibold text-white/85">
@@ -185,7 +182,6 @@ function TranscriptionDialog({
               </div>
             </div>
 
-            {/* Transcript */}
             <div className="flex flex-col p-5 sm:p-6 gap-3 overflow-hidden">
               <div className="flex items-center justify-between shrink-0">
                 <span className="text-base font-semibold text-white/85">
@@ -213,7 +209,7 @@ function TranscriptionDialog({
   );
 }
 
-/* ─── individual row card (flat glass, no icons) ─── */
+
 
 function TranscriptionRow({ rec }: { rec: TranscriptionRecord }) {
   const [open, setOpen] = useState(false);
@@ -231,7 +227,7 @@ function TranscriptionRow({ rec }: { rec: TranscriptionRecord }) {
           group
         "
       >
-        {/* Left: meta */}
+   
         <div className="flex-1 min-w-0">
           <p className="text-base font-semibold text-white/90 truncate leading-snug group-hover:text-white transition-colors">
             {rec.filename}
@@ -243,7 +239,7 @@ function TranscriptionRow({ rec }: { rec: TranscriptionRecord }) {
           </p>
         </div>
 
-        {/* Right: preview pill */}
+    
         <span className="shrink-0 rounded-xl border border-white/12 bg-white/[0.06] px-3 py-1.5 text-sm text-white/50 group-hover:text-white/80 group-hover:border-white/20 transition-all">
           View
         </span>
@@ -258,7 +254,7 @@ function TranscriptionRow({ rec }: { rec: TranscriptionRecord }) {
   );
 }
 
-/* ─── list with empty / error states ─── */
+
 
 interface Props {
   records: TranscriptionRecord[] | null;
