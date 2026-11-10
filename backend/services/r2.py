@@ -32,3 +32,21 @@ def get_presigned_download_url(file_key: str, expires_in: int = 7200) -> str:
         Params={"Bucket": bucket_name, "Key": file_key},
         ExpiresIn=expires_in,
     )
+
+
+def upload_to_r2(file_key: str, data: bytes, content_type: str = "application/octet-stream") -> bool:
+    """Upload bytes to R2."""
+    bucket_name = os.getenv("CLOUDFLARE_R2_BUCKET_NAME", "gnani-audio")
+    client = get_r2_client()
+
+    try:
+        client.put_object(
+            Bucket=bucket_name,
+            Key=file_key,
+            Body=data,
+            ContentType=content_type,
+        )
+        return True
+    except Exception as exc:
+        print(f"R2 upload failed: {exc}")
+        return False

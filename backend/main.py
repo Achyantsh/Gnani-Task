@@ -4,6 +4,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routes.transcription import router as transcription_router
+from routes.actions import router as actions_router
+from routes.tts import router as tts_router
+from routes.webhooks import router as webhooks_router
 
 load_dotenv()
 
@@ -28,6 +31,10 @@ app.add_middleware(
 )
 
 app.include_router(transcription_router, tags=["Transcription"])
+app.include_router(actions_router, tags=["Actions"])
+app.include_router(tts_router, tags=["TTS"])
+app.include_router(webhooks_router, tags=["Webhooks"])
+
 
 @app.get("/health", tags=["Health"])
 async def health_check():

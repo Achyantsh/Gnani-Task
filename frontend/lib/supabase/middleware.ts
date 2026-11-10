@@ -33,6 +33,12 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
+  // API handlers return their own authentication responses. Do not redirect
+  // fetch/EventSource clients to the HTML login page.
+  if (pathname.startsWith('/api/')) {
+    return supabaseResponse
+  }
+
   // Public routes that unauthenticated users can access
   
 

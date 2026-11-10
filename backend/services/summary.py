@@ -27,11 +27,11 @@ async def generate_summary(transcript: str, language_code: str = "en-IN") -> str
 
     # url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={api_key}"
 
-    prompt = f"""
-        Provide a clear and concise summary of this transcript in {target_language} for the given transcript in PLAIN TEXT (NO MARKDOWN, example: **Tailwind CSS** to Tailwind CSS):
-
-        {transcript}
-        """
+    prompt = (
+        f"Provide a clear and concise summary of this transcript in {target_language} "
+        f"for the given transcript in PLAIN TEXT (NO MARKDOWN, example: **Tailwind CSS** to Tailwind CSS):\n\n"
+        f"{transcript}"
+    )
 
     payload = {
         "contents": [{"parts": [{"text": prompt}]}]

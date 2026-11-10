@@ -9,21 +9,32 @@ import type { User } from '@supabase/supabase-js'
 import { GlassEffect, GlassFilter } from './liquid'
 import { Menu } from '@base-ui/react/menu'
 import { Avatar } from '@base-ui/react/avatar'
-import { Info, LogOut, User as UserIcon, FileAudio } from 'lucide-react'
+import { Info, LogOut, User as UserIcon, FileAudio, Inbox, LayoutDashboard, BookOpen, FileText } from 'lucide-react'
 import { motion } from 'motion/react'
 import { SITE_NAME } from '@/constant/site-config'
+
+interface NavItem {
+  name: string
+  path: string
+  icon: React.ReactNode
+  authOnly?: boolean
+}
+
 export function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const navItems = [
-    { name: user ? 'Dashboard' : 'Home', path: '/' },
-    ...(user ? [{ name: 'Transcriptions', path: '/transcriptions' }] : []),
-    { name: 'Architecture', path: '/architecture' },
-    { name: 'About', path: '/about' },
+  const navItems: NavItem[] = [
+    { name: 'Dashboard', path: '/', icon: <LayoutDashboard className="h-4 w-4" />, authOnly: true },
+    { name: 'Transcriptions', path: '/transcriptions', icon: <FileAudio className="h-4 w-4" />, authOnly: true },
+    { name: 'Action Inbox', path: '/inbox', icon: <Inbox className="h-4 w-4" />, authOnly: true },
+    { name: 'Architecture', path: '/architecture', icon: <BookOpen className="h-4 w-4" /> },
+    { name: 'About', path: '/about', icon: <Info className="h-4 w-4" /> },
   ]
+
+  const filteredNavItems = navItems.filter(item => !item.authOnly || user)
 
   useEffect(() => {
     const supabase = createClient()
@@ -70,12 +81,10 @@ export function Navbar() {
 
     const meta = currentUser.user_metadata || {}
 
-    // 1. Direct avatar_url or picture from Supabase Auth user_metadata (Google Auth sets picture)
     if (meta.avatar_url && typeof meta.avatar_url === 'string') return meta.avatar_url
     if (meta.picture && typeof meta.picture === 'string') return meta.picture
     if (meta.avatar && typeof meta.avatar === 'string') return meta.avatar
 
-    // 2. OAuth provider identities (Google / GitHub stored in Supabase identities)
     if (currentUser.identities && currentUser.identities.length > 0) {
       for (const identity of currentUser.identities) {
         const idData = (identity.identity_data as Record<string, unknown>) || {}
@@ -85,7 +94,6 @@ export function Navbar() {
       }
     }
 
-    // 3. Fallback to Supabase deterministic avatar from email or id
     if (currentUser.email || currentUser.id) {
       const seed = encodeURIComponent(currentUser.email || currentUser.id)
       return `https://api.dicebear.com/7.x/initials/svg?seed=${seed}&backgroundColor=0284c7,2563eb,4f46e5&textColor=ffffff`
@@ -100,16 +108,17 @@ export function Navbar() {
 
   return (
     <>
-      
+
       <GlassFilter />
 
       <header className="fixed top-0 left-0 right-0 z-50 w-full px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pointer-events-none">
         <div className="mx-auto max-w-6xl pointer-events-auto">
           <GlassEffect className="w-full rounded-2xl sm:rounded-full border border-white/25 px-4 sm:px-6 py-2.5 shadow-2xl backdrop-blur-xl">
-           
-            <div className="grid grid-cols-3 items-center w-full h-12">
-             
-              <div className="flex items-center justify-start">
+
+            <div className="grid grid-cols-[auto_1fr_auto] items-center w-full h-12 gap-4 sm:gap-6">
+
+              {/* Left: Logo */}
+              <div className="flex items-center justify-start shrink-0">
                 <Link
                   href="/"
                   className="group flex items-center gap-2.5 transition cursor-pointer"
@@ -125,21 +134,22 @@ export function Navbar() {
                       priority
                     />
                   </div>
-                  <span className="font-bold text-base sm:text-lg tracking-tight text-white drop-shadow-sm">
+                  <span className="font-bold text-base sm:text-lg tracking-tight text-white drop-shadow-sm hidden sm:block">
                     Audio<span className="font-medium text-sky-200">Note</span>
                   </span>
                 </Link>
               </div>
 
-              <div className="flex items-center justify-center">
+              {/* Center: Navigation Pills */}
+              <div className="flex items-center justify-center flex-1 min-w-0">
                 <nav className="relative flex items-center gap-1 rounded-full bg-black/25 p-1 border border-white/10 backdrop-blur-md shadow-inner">
-                  {navItems.map((item) => {
+                  {filteredNavItems.map((item) => {
                     const active = pathname === item.path
                     return (
                       <Link
                         key={item.path}
                         href={item.path}
-                        className={`relative rounded-full px-5 py-1.5 text-xs sm:text-sm font-medium transition-colors duration-200 select-none cursor-pointer ${
+                        className={`relative flex items-center gap-2 rounded-full px-4 py-1.5 text-xs sm:text-sm font-medium transition-colors duration-200 select-none cursor-pointer ${
                           active
                             ? 'text-white font-semibold'
                             : 'text-zinc-300 hover:text-white hover:bg-white/10'
@@ -156,8 +166,9 @@ export function Navbar() {
                             }}
                           />
                         )}
-                        <span className="relative z-10 drop-shadow-sm">
-                          {item.name}
+                        <span className="relative z-10 flex items-center gap-2 drop-shadow-sm">
+                          <span className="flex-shrink-0">{item.icon}</span>
+                          <span className="hidden sm:inline">{item.name}</span>
                         </span>
                       </Link>
                     )
@@ -165,8 +176,8 @@ export function Navbar() {
                 </nav>
               </div>
 
-          
-              <div className="flex items-center justify-end">
+              {/* Right: User Menu / Sign In */}
+              <div className="flex items-center justify-end shrink-0">
                 {loading ? (
                   <div className="h-9 w-9 animate-pulse rounded-full bg-white/20" />
                 ) : user ? (
@@ -181,7 +192,7 @@ export function Navbar() {
                             className="aspect-square h-full w-full object-cover"
                           />
                         )}
-                        <Avatar.Fallback className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-sky-400/30 to-blue-600/40 font-bold text-xs text-white backdrop-blur-md">
+                        <Avatar.Fallback className="flex h-full w-full items-center justify-center rounded-full bg-linear-to-br from-sky-400/30 to-blue-600/40 font-bold text-xs text-white backdrop-blur-md">
                           {getUserInitials(user)}
                         </Avatar.Fallback>
                       </Avatar.Root>
@@ -196,7 +207,7 @@ export function Navbar() {
                       >
                         <Menu.Popup className="outline-none">
                           <GlassEffect className="w-64 rounded-3xl p-3 border border-white/25 shadow-2xl backdrop-blur-2xl">
-                            
+
                             <div className="flex items-center gap-3 px-2.5 py-2 border-b border-white/10 mb-1">
                               <Avatar.Root className="relative flex h-9 w-9 shrink-0 overflow-hidden rounded-full border border-white/30 shadow-md">
                                 {getUserAvatarUrl(user) && (
@@ -207,7 +218,7 @@ export function Navbar() {
                                     className="aspect-square h-full w-full object-cover"
                                   />
                                 )}
-                                <Avatar.Fallback className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-sky-400/30 to-blue-600/40 font-bold text-xs text-white backdrop-blur-md">
+                                <Avatar.Fallback className="flex h-full w-full items-center justify-center rounded-full bg-linear-to-br from-sky-400/30 to-blue-600/40 font-bold text-xs text-white backdrop-blur-md">
                                   {getUserInitials(user)}
                                 </Avatar.Fallback>
                               </Avatar.Root>
@@ -224,13 +235,13 @@ export function Navbar() {
                               </div>
                             </div>
 
-                     
+
                             <div className="space-y-1">
                               <Menu.Item
                                 onClick={() => router.push('/')}
                                 className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2 text-xs font-medium text-zinc-200 hover:text-white hover:bg-white/15 transition-colors cursor-pointer outline-none select-none"
                               >
-                                <UserIcon className="h-3.5 w-3.5 text-zinc-400" />
+                                <LayoutDashboard className="h-3.5 w-3.5 text-zinc-400" />
                                 <span>Dashboard</span>
                               </Menu.Item>
 
@@ -243,6 +254,14 @@ export function Navbar() {
                               </Menu.Item>
 
                               <Menu.Item
+                                onClick={() => router.push('/inbox')}
+                                className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2 text-xs font-medium text-zinc-200 hover:text-white hover:bg-white/15 transition-colors cursor-pointer outline-none select-none"
+                              >
+                                <Inbox className="h-3.5 w-3.5 text-zinc-400" />
+                                <span>Action Inbox</span>
+                              </Menu.Item>
+
+                              <Menu.Item
                                 onClick={() => router.push('/about')}
                                 className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2 text-xs font-medium text-zinc-200 hover:text-white hover:bg-white/15 transition-colors cursor-pointer outline-none select-none"
                               >
@@ -252,7 +271,7 @@ export function Navbar() {
 
                               <div className="my-1 border-t border-white/10" />
 
-                            
+
                               <Menu.Item
                                 onClick={handleSignOut}
                                 className="flex items-center gap-2.5 w-full rounded-xl px-3 py-2 text-xs font-semibold text-rose-300 hover:text-rose-200 hover:bg-rose-500/20 transition-colors cursor-pointer outline-none select-none"

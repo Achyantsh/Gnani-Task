@@ -3,12 +3,19 @@ import asyncio
 import httpx
 from gnani.stt import GnaniSTTClient
 
-from config import GNANI_BATCH_URL
+from config import (
+    GNANI_BATCH_URL,
+    PRISMA_V3_MODEL,
+    PRISMA_V2_5_MODEL,
+    INDIC_AUTO_LANGUAGE_CODE,
+    OUTPUT_FORMAT_CODEMIX,
+    SUPPORTED_LANGUAGE_CODES,
+)
 
 def normalize_language(lang: str | None) -> str:
     if not lang:
         return "en-IN"
-    
+
     lang = lang.strip()
     if "-" not in lang:
         return f"{lang}-IN"
@@ -32,12 +39,34 @@ def transcribe_short_audio_sdk(audio_path_or_bytes, language_code: str = "en-IN"
 
 
 # Creating Job Id
-async def create_batch_job(file_url: str, language_code: str = "en-IN") -> str:
+async def create_batch_job(
+    file_url: str,
+    language_code: str = "en-IN",
+    model: str = PRISMA_V3_MODEL,
+    output_format: str = OUTPUT_FORMAT_CODEMIX,
+    callback_url: str | None = None,
+) -> str:
+    """
+    Create a Gnani Batch STT job.
+
+    Args:
+        file_url: Publicly accessible URL to the audio file.
+        language_code: BCP-47 language code (e.g. 'hi-IN', 'en-IN') or 'indic-auto' for detection.
+        model: Prisma model name ('prisma-v3.0' or 'gnani-prisma-v2.5').
+        output_format: Output format ('codemix', 'transliterate', 'verbatim', 'transcribe').
+        callback_url: Optional webhook URL for job completion notification.
+
+    Returns:
+        job_id: The Gnani batch job identifier.
+    """
+    lang = normalize_language(language_code)
+    if lang == "indic-auto":
+        lang = INDIC_AUTO_LANGUAGE_CODE
 
     payload = {
         "config": {
-            "model": "gnani-prisma-v2.5",
-            "language_code": normalize_language(language_code),
+            "model": model,
+            "language_code": lang,
             "mode": "transcribe",
             "with_diarization": False,
             "is_multi_channel": False,
@@ -48,6 +77,14 @@ async def create_batch_job(file_url: str, language_code: str = "en-IN") -> str:
             "paths": [file_url],
         },
     }
+
+    # Add output_format only for Prisma v3.0 (v2.5 may not support it)
+    if model == PRISMA_V3_MODEL:
+        payload["config"]["output_format"] = output_format
+
+    # Add callback_url if provided
+    if callback_url:
+        payload["callback_url"] = callback_url
 
     async with httpx.AsyncClient(timeout=30.0) as httpClient:
         for attempt in range(3):
@@ -96,7 +133,6 @@ async def get_batch_job_status(job_id: str) -> dict:
             break
 
         if response.status_code == 429:
-            
             return {"status": "RATE_LIMITED"}
 
         if response.status_code != 200:

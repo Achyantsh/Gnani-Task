@@ -40,7 +40,7 @@ Recordings go straight from the browser to object storage, are transcribed async
 1. The browser validates the file and requests a presigned upload URL.
 2. The audio is uploaded directly to **Cloudflare R2**.
 3. **FastAPI** creates and starts a **Gnani Batch STT** job from a signed read URL and returns a task ID.
-4. The frontend polls the task status and shows the current stage.
+4. The frontend receives completion events through authenticated SSE, with status polling retained as a recovery fallback.
 5. When transcription completes, the backend fetches the transcript and asks **Gemini** for a summary.
 6. The result is saved to **Supabase PostgreSQL** and appears in the user's history.
 
@@ -75,12 +75,10 @@ Large files never pass through the application servers, and no single HTTP reque
 │   ├── context/              Upload and processing state
 │   ├── lib/                  R2 and Supabase clients
 │   └── public/
-├── routes/
-│   └── transcription.py      Transcription endpoints
-├── services/
-│   ├── gnani.py              Gnani Batch STT client
-│   ├── r2.py                 Signed URL helpers
-│   └── summary.py            Gemini summarization
+├── backend/
+│   ├── routes/                Transcription, webhook, action and TTS endpoints
+│   ├── services/              Gnani, R2, Gemini, extraction and action services
+│   └── migrations/            Supabase schema migrations
 ├── images/                   README assets
 ├── config.py
 ├── main.py
@@ -95,6 +93,10 @@ Large files never pass through the application servers, and no single HTTP reque
 | `GET` | `/transcribe/{task_id}` | Get job status, or the finished result |
 | `POST` | `/transcribe/{task_id}/cancel` | Cancel a running job |
 | `GET` | `/health` | Service health check |
+
+Transcription, action, TTS and SSE endpoints require a Supabase bearer access
+token. The Gnani callback endpoint is provider-facing and must be protected
+with a verified callback signature when the provider supports one.
 
 ## Getting started
 

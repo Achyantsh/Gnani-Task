@@ -32,6 +32,17 @@ function getFastApiBaseUrl(): string {
   return url.replace(/\/+$/, "");
 }
 
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token
+    ? {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${data.session.access_token}`,
+      }
+    : { "Content-Type": "application/json" };
+}
+
 export async function startAudioTranscription(
   fileKey: string,
   filename: string,
@@ -59,9 +70,7 @@ export async function startAudioTranscription(
     const apiUrl = `${getFastApiBaseUrl()}/transcribe`;
     const response = await fetch(apiUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: await getAuthHeaders(),
       body: JSON.stringify({
         file_key: fileKey,
         filename,
@@ -114,9 +123,7 @@ export async function checkTranscriptionTask(
     const apiUrl = `${getFastApiBaseUrl()}/transcribe/${taskId}`;
     const response = await fetch(apiUrl, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: await getAuthHeaders(),
       cache: "no-store",
     });
 
@@ -181,9 +188,7 @@ export async function cancelAudioTranscription(
     const apiUrl = `${getFastApiBaseUrl()}/transcribe/${taskId}/cancel`;
     const response = await fetch(apiUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: await getAuthHeaders(),
       cache: "no-store",
     });
 

@@ -12,10 +12,13 @@ import {
   Layers,
   Play,
   Download,
+  Volume2,
+  Loader2,
 } from "lucide-react";
 import { AudioPlayer } from "./audio-player";
 import { toast } from "@/components/ui/toast";
 import { TranscriptSegment } from "@/actions/transcribe";
+import { generateTTS } from "@/actions/actions";
 
 interface ResultCardProps {
   filename: string;
@@ -26,6 +29,7 @@ interface ResultCardProps {
   segments?: TranscriptSegment[];
   onReset: () => void;
   isExpanded?: boolean;
+  languageCode?: string;
 }
 
 function formatDuration(secs?: number): string {
@@ -51,10 +55,14 @@ export function ResultCard({
   segments,
   onReset,
   isExpanded = true,
+  languageCode = "en-IN",
 }: ResultCardProps) {
   const [copiedSummary, setCopiedSummary] = useState(false);
   const [copiedTranscript, setCopiedTranscript] = useState(false);
   const [copiedSegmentId, setCopiedSegmentId] = useState<number | null>(null);
+  const [ttsGenerating, setTtsGenerating] = useState(false);
+  const [ttsAudioUrl, setTtsAudioUrl] = useState<string | null>(null);
+  const [ttsError, setTtsError] = useState<string | null>(null);
 
 
   const hasSegments = Boolean(segments && segments.length > 0);
@@ -94,6 +102,47 @@ export function ResultCard({
       description: `Copied segment ${index + 1} to clipboard.`,
       type: "success",
     });
+  };
+
+  const handleGenerateTTS = async () => {
+    if (!summary || ttsGenerating) return;
+
+    setTtsGenerating(true);
+    setTtsError(null);
+    setTtsAudioUrl(null);
+
+    try {
+      const res = await generateTTS({
+        text: summary,
+        language_code: languageCode,
+      });
+
+      if (res.success && res.audio_url) {
+        setTtsAudioUrl(res.audio_url);
+        toast.add({
+          title: "Summary ready",
+          description: `Playing with ${res.voice_used || 'Timbre'} voice`,
+          type: "success",
+        });
+      } else {
+        setTtsError(res.error || "Failed to generate speech");
+        toast.add({
+          title: "TTS failed",
+          description: res.error || "Could not generate speech",
+          type: "error",
+        });
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      setTtsError(msg);
+      toast.add({
+        title: "Error",
+        description: msg,
+        type: "error",
+      });
+    } finally {
+      setTtsGenerating(false);
+    }
   };
 
   const handleSeekToSegment = (startTime: number) => {
@@ -187,10 +236,29 @@ export function ResultCard({
         <div className="flex flex-col rounded-2xl border border-white/15 bg-black/40 p-4 sm:p-5 backdrop-blur-xl min-h-[280px] lg:min-h-[380px] max-h-[60vh]">
           <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10 shrink-0">
             <div className="flex items-center gap-2 text-white font-semibold  sm:text-sm">
-              
+
               <span>AI Summary</span>
             </div>
             <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleGenerateTTS}
+                disabled={ttsGenerating || !!ttsAudioUrl}
+                className="flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 hover:bg-white/20 px-2.5 py-1 text-[11px] text-white/80 hover:text-white transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                title={ttsGenerating ? "Generating..." : ttsAudioUrl ? "Already generated" : "Listen to summary"}
+              >
+                {ttsGenerating ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : ttsAudioUrl ? (
+                  <Check className="h-3.5 w-3.5 text-emerald-400" />
+                ) : (
+                  <Volume2 className="h-3.5 w-3.5" />
+                )}
+                <span className="hidden sm:inline">
+                  {ttsGenerating ? "Generating..." : ttsAudioUrl ? "Ready" : "Listen"}
+                </span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => handleCopy("summary")}
@@ -219,6 +287,18 @@ export function ResultCard({
           <div className="flex-1 overflow-y-auto pr-2  text-white/90 leading-relaxed whitespace-pre-wrap font-sans space-y-2">
             {summary || "Summary unavailable."}
           </div>
+
+          {ttsAudioUrl && (
+            <div className="mt-3 pt-3 border-t border-white/10 shrink-0">
+              <AudioPlayer src={ttsAudioUrl} />
+            </div>
+          )}
+
+          {ttsError && (
+            <div className="mt-3 pt-3 border-t border-red-500/20 shrink-0 text-red-400 text-xs">
+              TTS Error: {ttsError}
+            </div>
+          )}
         </div>
 
        
