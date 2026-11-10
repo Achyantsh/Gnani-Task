@@ -2,7 +2,7 @@
 
 **Project:** [GitHub repository](https://github.com/Achyantsh/Gnani-Task)  
 **Live demo:** [AudioNote](https://gnani-task-one.vercel.app)  
-**Demo walkthrough:** [DEMO_SCRIPT.md](./DEMO_SCRIPT.md)
+
 
 ## The problem
 
